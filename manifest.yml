@@ -1,0 +1,209 @@
+type: update
+jpsVersion: 6.1.1
+name: WordPress Import
+id: wp-import
+targetEditions: any
+logo: /images/backup-logo.svg
+description: Import Add-On for the WordPress applications.
+baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
+
+targetNodes:
+  nodeType:
+    - nginxphp
+    - litespeedphp
+    - lemp
+    - llsmp
+
+settings:
+  ssh:
+    fields:
+      - caption: Backup storage
+        type: list
+        tooltip: "The environment with backup storage to be used for backups creation. Presence of this environment is obligatory."  
+        name: storageName
+        dependsOn: region
+        required: true
+      - type: spinner
+        name: backupCount
+        caption: Number of backups
+        tooltip: "The number of newest backups to be kept during rotation."  
+        min: 1
+        max: 100
+        default: 5
+        
+  import:
+    fields: []
+    onBeforeInit: scripts/importOnBeforeInit.js
+      
+buttons:
+- caption: Get projects
+  action: getProjects
+  settings: sshcreds
+  loadingText: Getting WordPress projects...
+  successText: List of WordPress projects received successfully.
+  
+- caption: Import
+  action: importProject
+  loadingText: Importing...
+  settings: restore
+  successText: The Wordpress project have been successfully imported.
+  title: Import Backup
+  submitButtonText: Import
+  confirmText: You are going to restore from a backup, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
+
+globals:
+  scriptSufix: wp-backup
+
+onInstall:
+  - checkApplication
+  - installRestic
+  - setSchedule
+
+onUninstall:
+  - callScript: uninstall
+  - removeScript
+
+onBeforeDelete:
+  - callScript: uninstall
+  - removeScript
+  
+onAfterRedeployContainer[cp]:
+  - installRestic
+  
+onAfterClone:     
+  - script: return {result:0, jps:MANIFEST};
+  - install: ${response.jps}
+    nodeGroup: ${targetNodes.nodeGroup:cp}
+    envName: ${event.response.env.envName}
+    settings:
+      scheduleType: ${settings.scheduleType}
+      storageName: ${settings.storageName}
+      cronTime: ${settings.cronTime}
+      backupTime: ${settings.backupTime}
+      sun: ${settings.sun} 
+      mon: ${settings.mon}
+      tue: ${settings.tue}
+      wed: ${settings.wed}
+      thu: ${settings.thu}
+      fri: ${settings.fri}
+      sat: ${settings.sat}
+      tz: ${settings.tz}    
+      backupCount: ${settings.backupCount}
+
+onAfterConfirmTransfer: setSchedule
+
+actions:
+  checkApplication:
+    - cmd[${nodes.cp.master.id}]: |-
+        [ -f /root/check_app.sh ] && rm -f /root/check_app.sh;
+        wget -O /root/check_app.sh ${baseUrl}/scripts/check_app.sh;
+        bash /root/check_app.sh;
+      user: root
+    - if (response.out == "Non-supported"):
+      - stopEvent:
+          type: warning
+          message: Deployed application is not supported by Backup add-on.
+    
+  installRestic:
+    cmd [cp]: |-
+      yum-config-manager --add-repo https://copr.fedorainfracloud.org/coprs/copart/restic/repo/epel-7/copart-restic-epel-7.repo
+      yum-config-manager --enable copr:copr.fedorainfracloud.org:copart:restic
+      yum -y install restic
+      yum-config-manager --disable copr:copr.fedorainfracloud.org:copart:restic
+      wget -O /etc/logrotate.d/backup-addon ${baseUrl}/scripts/backup-addon;
+    user: root
+
+  installScript:
+    - removeScript
+    - getStorageCtid
+    - script: ${baseUrl}/scripts/create-backup-main-script.js?_r=${fn.random}
+      params:
+        scriptName: ${env.envName}-${globals.scriptSufix}
+        baseUrl: ${baseUrl}
+        cronTime: ${this.cronTime}
+        backupCount: ${this.backupCount}
+        userId: ${env.uid}
+        storageNodeId: ${response.storageCtid}
+        backupExecNode: ${nodes.cp.master.id}
+        storageEnv: ${response.storageEnvShortName}
+
+  callScript:
+    script: |-
+      var resp = jelastic.dev.scripting.Eval(appid, session, '${env.envName}-${globals.scriptSufix}', {action:"${this}"});
+      return resp.response || resp;
+      
+  removeScript:
+    script: |-
+      var resp = jelastic.dev.scripting.GetScript(appid, session, '${env.envName}-${globals.scriptSufix}');
+      if (resp.result === 0) {
+          var resp = jelastic.dev.scripting.DeleteScript(appid, session, '${env.envName}-${globals.scriptSufix}');
+          return resp.response || resp;
+      }
+      return { result: 0 };
+
+  backup:
+    - callScript: backup
+    
+  restore:
+    - getStorageCtid
+    - cmd[cp]: |-
+        echo "${settings.backupDir}" > /root/.backupid
+      user: root
+    - callScript: restore
+    
+  configure:
+    - setSchedule
+        
+  getStorageCtid:
+    - script: |-
+        var storageEnv = '${globals.storageEnv}'
+        var storageEnvShortName = storageEnv.split(".")[0]
+        var resp = jelastic.environment.control.GetEnvInfo(storageEnvShortName, session)
+        if (resp.result != 0) return resp
+        for (var i = 0; resp.nodes; i++) {
+            var node = resp.nodes[i]
+            if (node.nodeGroup == 'storage' && node.ismaster) {
+                return { result: 0, storageCtid : node.id, storageEnvShortName : storageEnvShortName};
+            }
+        }
+        
+  convert:
+    - script: |
+        var resp = {result:0, onAfterReturn: {setGlobals:{cron: ""}}}, offset = java.util.TimeZone.getTimeZone("${settings.tz}").getRawOffset(),
+            setGlobals = resp.onAfterReturn.setGlobals;
+        
+        var time = "${settings.backupTime}".split(":"),
+            d1 = new Date(2020, 1, 10, parseInt(time[0],10), parseInt(time[1],10)),
+            d2 = new Date(d1.getTime() - offset),
+            dd = d2.getDate() - d1.getDate(),
+            days = getDays([${settings.sun:0}, ${settings.mon:0}, ${settings.tue:0}, ${settings.wed:0}, ${settings.thu:0}, ${settings.fri:0}, ${settings.sat:0}], dd);
+
+        setGlobals.cron = d2.getMinutes() + " " + d2.getHours() + " * * " + days.join(",");
+
+
+        function getDays(settings, dd) {
+          var days = [];
+          for (var i = 0, n = settings.length; i < n; i++) {
+            if (settings[i]) {
+              var day = i + dd;
+              if (day < 0) day +=7; else if (day > 6) day -=7;
+              days.push(day);
+            }
+          }
+          days.sort();
+          return days;
+        }
+
+        return resp;
+
+  setSchedule:
+    - setGlobals: 
+        storageEnv: ${settings.storageName}
+    - if ("${settings.scheduleType}" == 2):
+      - convert
+    - else:
+      - setGlobals:
+          cron: ${settings.cronTime}
+    - installScript:
+        cronTime: ${globals.cron}
+        backupCount: ${settings.backupCount}
