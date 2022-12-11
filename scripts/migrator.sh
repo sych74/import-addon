@@ -63,11 +63,11 @@ validatePublicHtmlDir(){
   status=$(execSshReturn "$command" "$message")
 }
 
-getProjectList(){
+getSshProjectList(){
   local command="${SSH} \"find public_html -name 'wp-config.php' | grep -o -P '(?<=public_html/).*(?=/wp-config.php)' | sort -u \""
   local message="Get wordpress directories"
-  local wp_projects=$(execSshReturn "$command" "$message")
-  echo $wp_projects;
+  local ssh_wp_projects=$(execSshReturn "$command" "$message")
+  echo $ssh_wp_projects;
 }
 
 getDbUser(){
@@ -150,6 +150,12 @@ downloadProject(){
 #echo ------- $wpProjects
 #db_name=$(getDbName)
 
+getProjectList(){
+  local project_list=$(ls -Qm ${PROJECT_DIR});
+  local output_json="{\"result\": 0, \"projects\": [${project_list}]}"
+  echo $output_json
+}
+
 getSSHprojects(){
   for i in "$@"; do
     case $i in
@@ -178,23 +184,32 @@ getSSHprojects(){
     esac
   done
 
+  echo "SSH_USER=${SSH_USER}" > ${SSH_CONFIG}
+  echo "SSH_PASSWORD=${SSH_PASSWORD}" >> ${SSH_CONFIG}
+  echo "SSH_PORT=${SSH_PORT}" >> ${SSH_CONFIG}
+  echo "SSH_HOST=${SSH_HOST}" >> ${SSH_CONFIG}
 
+  source ${SSH_CONFIG}
 
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
   validatePublicHtmlDir
-  wpProjects=( $(getProjectList) )
+  wpProjects=( $(getSshProjectList) )
   [[ -d ${PROJECT_DIR} ]] && rm -rf ${PROJECT_DIR} || mkdir ${PROJECT_DIR}
 
   for projectName in ${wpProjects[@]}; do
     mkdir -p ${PROJECT_DIR}/${projectName}
-    echo "-----------$projectName------"
   done
+  getProjectList
 }
 
 case ${1} in
     getSSHprojects)
         getSSHprojects "$@"
         ;;
+
+    getProjectList)
+      getProjectList
+      ;;
 
     getGITproject)
         getGITproject "$@"
