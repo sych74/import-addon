@@ -1,17 +1,19 @@
-#!/bin/bash -e
+#!/bin/bash
 
 SUCCESS_CODE=0
 FAIL_CODE=99
 AUTHORIZATION_ERROR_CODE=701
-RUN_LOG="/var/log/migrator.log"
+RUN_LOG="/home/jelastic/migrator/migrator.log"
 SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
 SSH_CREDS=
 REMOTE_DIR="public_html"
-BASE_DIR="/root/cpanel/wordpress"
-BACKUP_DIR="/${BASE_DIR}/backup"
+BASE_DIR="/home/jelastic/migrator/wordpress"
+BACKUP_DIR="${BASE_DIR}/backup"
+DB_BACKUP="db_backup.sql"
 PROJECT_DIR="${BASE_DIR}/project"
-WP_CONFIG="wp-config.php"
-SSH_CONFIG="${BASE_DIR}/sshcreds"
+WEBROOT_DIR="/var/www/webroot/ROOT"
+WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
+WP_ENV="${BASE_DIR}/.wpenv"
 
 [[ -d ${BASE_DIR} ]] && mkdir -p ${BASE_DIR}
 [[ -d ${BACKUP_DIR} ]] && mkdir -p ${BACKUP_DIR}
@@ -33,6 +35,17 @@ execAction(){
     exit 0
   }
 }
+
+execActionReturn(){
+  local action="$1"
+  local message="$2"
+  stderr=$( { ${action}; } 2>&1 ) && { echo ${stdout}; log "${message}...done"; } || {
+    error="${message} failed, please check ${RUN_LOG} for details"
+    log "${message}...failed\n==============ERROR==================\n${stderr}\n============END ERROR================";
+    exit 0
+  }
+}
+
 
 execSshAction(){
   local action="$1"
@@ -70,36 +83,26 @@ getSshProjectList(){
   echo $ssh_wp_projects;
 }
 
-getDbUser(){
-  local project=$1;
-  local command="${SSH} \" cat ${REMOTE_DIR}/${project}/${WP_CONFIG} | grep DB_USER | cut -d \' -f 4 \""
-  local message=" Getting database user"
-  local db_user=$(execSshReturn "$command" "$message")
-  echo $db_user
+getWPconfigVar(){
+  local var=$1;
+  local message="Getting $var from ${WP_CONFIG}"
+  local result=$(cat ${WP_CONFIG} | grep $var | cut -d \' -f 4)
+  log "${message}...done";
+  echo $result
 }
 
-getDbPswd(){
-  local project=$1;
-  local command="${SSH} \" cat ${REMOTE_DIR}/${project}/${WP_CONFIG} | grep DB_PASSWORD | cut -d \' -f 4 \""
-  local message=" Getting database password "
-  local db_pswd=$(execSshReturn "$command" "$message")
-  echo $db_pswd
+addVar(){
+  local var=$1
+  local value=$2
+  [[ ! -f $WP_ENV ]] && touch $WP_ENV;
+  grep -q $var $WP_ENV || { echo "${var}=${value}" >> $WP_ENV; }
 }
 
-getDbName(){
-  local project=$1;
-  local command="${SSH} \" cat ${REMOTE_DIR}/${project}/${WP_CONFIG} | grep DB_NAME | cut -d \' -f 4 \""
-  local message="Getting database name"
-  local db_name=$(execSshReturn "$command" "Getting database name")
-  echo $db_name
-}
-
-getDbHost(){
-  local project=$1;
-  local command="${SSH} \" cat ${REMOTE_DIR}/${project}/${WP_CONFIG} | grep DB_HOST | cut -d \' -f 4 \""
-  local message="Getting database host"
-  local db_host=$(execSshReturn "$command" "$message")
-  echo $db_host
+updateVar(){
+  local var=$1
+  local value=$2
+  [[ ! -f $WP_ENV ]] && touch $WP_ENV;
+  grep -q $var $WP_ENV && { sed -i "s/${var}.*/${var}=${value}/" $WP_ENV; } || { echo "${var}=${value}" >> $WP_ENV; }
 }
 
 createDbBackup(){
@@ -116,39 +119,70 @@ createDbBackup(){
 
 createDbBackupWPCLI(){
   local project=$1;
-  local backup="${REMOTE_DIR}/${project}/DBbackup.sql"
-  local command="${SSH} \" wp db export $backup --path=${REMOTE_DIR}/${project}\""
+  local db_backup="${REMOTE_DIR}/${project}/${DB_BACKUP}"
+  local command="${SSH} \" wp db export $db_backup --path=${REMOTE_DIR}/${project}\""
   local message="[ Project: $project ] Creating database backup by WP_CLI"
   execSshAction "$command" "$message"
 }
 
 downloadProject(){
   local project=$1;
+  rm -rf ${BACKUP_DIR}; mkdir -p ${BACKUP_DIR};
   rsync -e "sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no -p${SSH_PORT} -l ${SSH_USER}" \
     -Sa \
-    ${SSH_HOST}:${REMOTE_DIR}/${project}/ /${PROJECT_DIR}/${project}/
+    ${SSH_HOST}:${REMOTE_DIR}/${project}/ /${BACKUP_DIR}/
 }
 
-#validatePublicHtmlDir
-#wpProjects=( $(getProjectList) )
-#[[ -d ${LOCAL_DIR} ]] && rm -rf ${LOCAL_DIR} || mkdir ${LOCAL_DIR}
+syncContent(){
+  local src=$1
+  local dst=$2
+  rm -rf $dst/{*,.*}; rsync -Sa --progress $src/ $dst/;
+}
 
-#for projectName in ${wpProjects[@]}; do
-#  mkdir -p ${LOCAL_DIR}/${projectName}
-#  echo "-----------$projectName------"
-#  createDbBackupWPCLI $projectName
-#  downloadProject $projectName
-#  execAction "downloadProject $projectName" "[ Project: $projectName ] Downloading project"
-#  dbUser=$(getDbUser $projectName)
-#  dbPswd=$(getDbPswd $projectName)
-#  dbName=$(getDbName $projectName)
-#  dbHost=$(getDbHost $projectName)
-#  echo ----- $dbUser  $dbPswd  $dbName $dbHost
-#  createDbBackup $dbUser $dbPswd $dbName $dbHost $projectName
-#done
+syncDB(){
+  local backup=$1
+  source ${WP_ENV}
+  mysql -u${DB_USER} -p${DB_PASS} -h${DB_HOST} ${DB_NAME} < $backup
+}
 
-#echo ------- $wpProjects
-#db_name=$(getDbName)
+setWPconfigVar(){
+  local var=$1;
+  local value=$2;
+  local message="Setting $var= $value in the ${WP_CONFIG}"
+  sed -i "s/^${var}.*/${var}=${value}/" ${WP_CONFIG};
+  log "${message}...done";
+}
+
+deployProject(){
+  for i in "$@"; do
+    case $i in
+      --project-name=*)
+      PROJECT_NAME=${i#*=}
+      shift
+      shift
+      ;;
+      *)
+        ;;
+    esac
+  done
+
+  source ${WP_ENV}
+  SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
+  createDbBackupWPCLI $PROJECT_NAME
+  downloadProject $PROJECT_NAME
+  addVar DB_USER $(getWPconfigVar DB_USER)
+  addVar DB_PASS $(getWPconfigVar DB_PASS)
+  addVar DB_NAME $(getWPconfigVar DB_NAME)
+  addVar DB_HOST $(getWPconfigVar DB_HOST)
+  execAction "syncContent ${BACKUP_DIR} ${WEBROOT_DIR}" "Sync content from ${BACKUP_DIR} to ${WEBROOT_DIR} "
+  execAction "syncDB ${BACKUP_DIR}/${DB_BACKUP}" "Sync database from ${BACKUP_DIR}/${DB_BACKUP} "
+  source ${WP_ENV}
+  setWPconfigVar DB_USER ${DB_USER}
+  setWPconfigVar DB_PASS ${DB_PASS}
+  setWPconfigVar DB_HOST ${DB_HOST}
+  setWPconfigVar DB_NAME ${DB_NAME}
+}
+
 
 getProjectList(){
   local project_list=$(ls -Qm ${PROJECT_DIR});
@@ -184,21 +218,20 @@ getSSHprojects(){
     esac
   done
 
-  echo "SSH_USER=${SSH_USER}" > ${SSH_CONFIG}
-  echo "SSH_PASSWORD=${SSH_PASSWORD}" >> ${SSH_CONFIG}
-  echo "SSH_PORT=${SSH_PORT}" >> ${SSH_CONFIG}
-  echo "SSH_HOST=${SSH_HOST}" >> ${SSH_CONFIG}
+  updateVar SSH_USER ${SSH_USER}
+  updateVar SSH_PASSWORD ${SSH_PASSWORD}
+  updateVar SSH_PORT ${SSH_PORT}
+  updateVar SSH_HOST ${SSH_HOST}
 
-  source ${SSH_CONFIG}
+  source ${WP_ENV}
 
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
   validatePublicHtmlDir
   wpProjects=( $(getSshProjectList) )
-  [[ -d ${PROJECT_DIR} ]] && rm -rf ${PROJECT_DIR} || mkdir ${PROJECT_DIR}
 
-  for projectName in ${wpProjects[@]}; do
-    mkdir -p ${PROJECT_DIR}/${projectName}
-  done
+
+  [[ -d ${PROJECT_DIR} ]] && rm -rf ${PROJECT_DIR} || mkdir -p ${PROJECT_DIR}
+  for projectName in ${wpProjects[@]}; do mkdir -p ${PROJECT_DIR}/${projectName}; done
   getProjectList
 }
 
@@ -215,4 +248,7 @@ case ${1} in
         getGITproject "$@"
         ;;
 
+    deployProject)
+      deployProject "$@"
+      ;;
 esac
