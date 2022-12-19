@@ -174,14 +174,14 @@ deployProject(){
   createDbBackupWPCLI $PROJECT_NAME
   downloadProject $PROJECT_NAME
   addVar DB_USER $(getWPconfigVar DB_USER)
-  addVar DB_PASS $(getWPconfigVar DB_PASS)
+  addVar DB_PASSWORD $(getWPconfigVar DB_PASSWORD)
   addVar DB_NAME $(getWPconfigVar DB_NAME)
   addVar DB_HOST $(getWPconfigVar DB_HOST)
   execAction "syncContent ${BACKUP_DIR} ${WEBROOT_DIR}" "Sync content from ${BACKUP_DIR} to ${WEBROOT_DIR} "
   execAction "syncDB ${BACKUP_DIR}/${DB_BACKUP}" "Sync database from ${BACKUP_DIR}/${DB_BACKUP} "
   source ${WP_ENV}
   setWPconfigVar DB_USER ${DB_USER}
-  setWPconfigVar DB_PASS ${DB_PASS}
+  setWPconfigVar DB_PASSWORD ${DB_PASSWORD}
   setWPconfigVar DB_HOST ${DB_HOST}
   setWPconfigVar DB_NAME ${DB_NAME}
 }
