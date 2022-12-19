@@ -7,7 +7,7 @@ RUN_LOG="/home/jelastic/migrator/migrator.log"
 SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
 SSH_CREDS=
 REMOTE_DIR="public_html"
-BASE_DIR="/home/jelastic/migrator/wordpress"
+BASE_DIR="/home/jelastic/migrator"
 BACKUP_DIR="${BASE_DIR}/backup"
 DB_BACKUP="db_backup.sql"
 PROJECT_DIR="${BASE_DIR}/project"
