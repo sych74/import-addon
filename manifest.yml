@@ -54,7 +54,7 @@ buttons:
 - caption: Import
   action: importProject
   loadingText: Importing...
-  settings: restore
+  settings: import
   successText: The Wordpress project have been successfully imported.
   title: Import Project
   submitButtonText: Import
