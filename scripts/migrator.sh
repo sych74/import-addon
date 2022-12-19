@@ -19,6 +19,10 @@ WP_ENV="${BASE_DIR}/.wpenv"
 [[ -d ${BACKUP_DIR} ]] && mkdir -p ${BACKUP_DIR}
 [[ -d ${PROJECT_DIR} ]] && mkdir -p ${PROJECT_DIR}
 
+wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O ${BASE_DIR}/wp;
+chmod +x ${BASE_DIR}/wp
+WP_CLI=`${BASE_DIR}/wp`
+
 log(){
   local message="$1"
   local timestamp
