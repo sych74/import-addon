@@ -19,7 +19,7 @@ WP_ENV="${BASE_DIR}/.wpenv"
 
 wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O ${BASE_DIR}/wp;
 chmod +x ${BASE_DIR}/wp;
-WP_CLI=`${BASE_DIR}/wp`
+WP_CLI="${BASE_DIR}/wp"
 
 log(){
   local message="$1"
@@ -88,7 +88,8 @@ getSshProjectList(){
 getWPconfigVar(){
   local var=$1;
   local message="Getting $var from ${WP_CONFIG}"
-  local result=$(cat ${WP_CONFIG} | grep $var | cut -d \' -f 4)
+#  local result=$(cat ${WP_CONFIG} | grep $var | cut -d \' -f 4)
+  local result=$(${WP_CLI} config get ${var} --config-file=${WP_CONFIG})
   log "${message}...done";
   echo $result
 }
@@ -150,9 +151,9 @@ syncDB(){
 setWPconfigVar(){
   local var=$1;
   local value=$2;
-  local message="Setting $var= $value in the ${WP_CONFIG}"
-  sed -i "s/^${var}.*/${var}=${value}/" ${WP_CONFIG};
-  log "${message}...done";
+  local message="Updating $var in the ${WP_CONFIG}";
+  local command="${WP_CLI} config set ${var} ${value} --config-file=${WP_CONFIG}"
+  execAction "${command}" "${message}"
 }
 
 deployProject(){
