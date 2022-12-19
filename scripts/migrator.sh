@@ -4,8 +4,6 @@ SUCCESS_CODE=0
 FAIL_CODE=99
 AUTHORIZATION_ERROR_CODE=701
 RUN_LOG="/home/jelastic/migrator/migrator.log"
-SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
-SSH_CREDS=
 REMOTE_DIR="public_html"
 BASE_DIR="/home/jelastic/migrator"
 BACKUP_DIR="${BASE_DIR}/backup"
@@ -20,7 +18,7 @@ WP_ENV="${BASE_DIR}/.wpenv"
 [[ -d ${PROJECT_DIR} ]] && mkdir -p ${PROJECT_DIR}
 
 wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O ${BASE_DIR}/wp;
-chmod +x ${BASE_DIR}/wp
+chmod +x ${BASE_DIR}/wp;
 WP_CLI=`${BASE_DIR}/wp`
 
 log(){
