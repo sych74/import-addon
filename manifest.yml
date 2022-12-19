@@ -62,11 +62,21 @@ buttons:
 
 globals:
   scriptSufix: wp-import
+  MIGRATOR_DIR: /home/jelastic/migrator
 
 onInstall:
-  - test
+  - installDependencies
 
 actions:
-  test:
-    log: "testttttttt"
-    
+  installDependencies:
+    - cmd[${nodes.cp.master.id}]: |-
+        rpm -qa | grep -qw sshpass || yum install sshpass -y;
+      user: root
+    - cmd[${nodes.cp.master.id}]: |-
+        [[ -d ${globals.MIGRATOR_DIR} ]] || mkdir ${globals.MIGRATOR_DIR};
+        wget ${baseUrl}/scripts/migrator.sh -O ${globals.MIGRATOR_DIR}/migrator.sh;
+
+  getSSHprojects:
+    - installDependencies:
+    - cmd[${nodes.cp.master.id}]: |-
+        bash ${globals.MIGRATOR_DIR}/migrator.sh getSSHprojects --ssh-user=${settings.sshUser} --ssh-password=${settings.sshPass} --ssh-host=${settings.sshHost} --ssh-port=${settings.sshPort};
