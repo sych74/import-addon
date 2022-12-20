@@ -12,14 +12,12 @@ PROJECT_DIR="${BASE_DIR}/project"
 WEBROOT_DIR="/var/www/webroot/ROOT"
 WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
+WP_CLI="${BASE_DIR}/wp"
 
 [[ -d ${BASE_DIR} ]] && mkdir -p ${BASE_DIR}
 [[ -d ${BACKUP_DIR} ]] && mkdir -p ${BACKUP_DIR}
 [[ -d ${PROJECT_DIR} ]] && mkdir -p ${PROJECT_DIR}
 
-wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O ${BASE_DIR}/wp;
-chmod +x ${BASE_DIR}/wp;
-WP_CLI="${BASE_DIR}/wp"
 
 log(){
   local message="$1"
@@ -27,6 +25,18 @@ log(){
   timestamp=`date "+%Y-%m-%d %H:%M:%S"`
   echo -e "[${timestamp}]: ${message}" >> ${RUN_LOG}
 }
+
+installWP_CLI(){
+    curl -s -o ${WP_CLI} https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar  && chmod +x ${WP_CLI};
+    echo "apache_modules:" > ${BASE_DIR}/wp-cli.yml;
+    echo "  - mod_rewrite" >> ${BASE_DIR}/wp-cli.yml;
+    ${WP_CLI} --info  2>&1;
+}
+
+#log "Installing WP_CLI........";
+#wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -O ${BASE_DIR}/wp 2>> ${RUN_LOG};
+#chmod +x ${BASE_DIR}/wp;
+#WP_CLI="${BASE_DIR}/wp"
 
 execResponse(){
   local result=$1
@@ -46,17 +56,6 @@ execAction(){
   }
 }
 
-execActionReturn(){
-  local action="$1"
-  local message="$2"
-  stderr=$( { ${action}; } 2>&1 ) && { echo ${stdout}; log "${message}...done"; } || {
-    error="${message} failed, please check ${RUN_LOG} for details"
-    log "${message}...failed\n==============ERROR==================\n${stderr}\n============END ERROR================";
-    exit 1
-  }
-}
-
-
 execSshAction(){
   local action="$1"
   local message="$2"
@@ -64,7 +63,7 @@ execSshAction(){
   stderr=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { log "${message}...done"; } || {
     error="${message} failed, please check ${RUN_LOG} for details"
     log "${message}...failed\n==============ERROR==================\n${stderr}\n============END ERROR================";
-    exit 0
+    exit 1
   }
 }
 
@@ -76,7 +75,7 @@ execSshReturn(){
   stdout=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { echo ${stdout}; log "${message}...done"; } || {
     error="${message} failed, please check ${RUN_LOG} for details"
     log "${message}...failed\n==============ERROR==================\n${stdout}\n============END ERROR================";
-    exit 0
+    exit 1
   }
 }
 
@@ -160,7 +159,7 @@ setWPconfigVar(){
   local var=$1;
   local value=$2;
   local message="Updating $var in the ${WP_CONFIG}";
-  local command="${WP_CLI} config set ${var} ${value} --config-file=${WP_CONFIG}"
+  local command="${WP_CLI} config set ${var} ${value} --config-file=${WP_CONFIG} --quiet"
   execAction "${command}" "${message}"
 }
 
@@ -245,6 +244,8 @@ getSSHprojects(){
   for projectName in ${wpProjects[@]}; do mkdir -p ${PROJECT_DIR}/${projectName}; done
   getProjectList
 }
+
+execAction "installWP_CLI" 'Install WP-CLI'
 
 case ${1} in
     getSSHprojects)
