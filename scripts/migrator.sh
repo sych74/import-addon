@@ -28,13 +28,21 @@ log(){
   echo -e "[${timestamp}]: ${message}" >> ${RUN_LOG}
 }
 
+execResponse(){
+  local result=$1
+  local message=$2
+  local output_json="{\"result\": ${result}, \"out\": \"${message}\"}"
+  echo $output_json
+}
+
 execAction(){
   local action="$1"
   local message="$2"
   stderr=$( { ${action}; } 2>&1 ) && { log "${message}...done"; } || {
     error="${message} failed, please check ${RUN_LOG} for details"
+    execResponse "${FAIL_CODE}" "${error}"
     log "${message}...failed\n==============ERROR==================\n${stderr}\n============END ERROR================";
-    exit 0
+    exit 1
   }
 }
 
@@ -44,7 +52,7 @@ execActionReturn(){
   stderr=$( { ${action}; } 2>&1 ) && { echo ${stdout}; log "${message}...done"; } || {
     error="${message} failed, please check ${RUN_LOG} for details"
     log "${message}...failed\n==============ERROR==================\n${stderr}\n============END ERROR================";
-    exit 0
+    exit 1
   }
 }
 
@@ -145,7 +153,7 @@ syncContent(){
 syncDB(){
   local backup=$1
   source ${WP_ENV}
-  mysql -u${DB_USER} -p${DB_PASS} -h${DB_HOST} ${DB_NAME} < $backup
+  mysql -u${DB_USER} -p${DB_PASSWORD} -h${DB_HOST} ${DB_NAME} < $backup
 }
 
 setWPconfigVar(){
