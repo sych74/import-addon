@@ -157,6 +157,20 @@ getSiteUrl(){
   echo $result
 }
 
+updateSiteUrl(){
+  local site_url=$1
+  local message="Updating WordPress Site URL to ${site_url}"
+  local command="${WP_CLI} option update siteurl ${site_url} --path=${WEBROOT_DIR} --quiet"
+  execAction "${command}" "${message}"
+}
+
+updateHomeUrl(){
+  local home_url=$1
+  local message="Updating WordPress Site URL to ${home_url}"
+  local command="${WP_CLI} option update home ${home_url} --path=${WEBROOT_DIR} --quiet"
+  execAction "${command}" "${message}"
+}
+
 deployProject(){
   for i in "$@"; do
     case $i in
@@ -186,6 +200,9 @@ deployProject(){
   setWPconfigVariable DB_PASSWORD ${DB_PASSWORD}
   setWPconfigVariable DB_HOST ${DB_HOST}
   setWPconfigVariable DB_NAME ${DB_NAME}
+  setWPconfigVariable WP_DEBUG "false"
+  updateSiteUrl $SITE_URL
+  updateHomeUrl $SITE_URL
 }
 
 getProjectList(){
