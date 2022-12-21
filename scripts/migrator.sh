@@ -16,9 +16,9 @@ WP_CLI="${BASE_DIR}/wp"
 trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 1" TERM
 export TOP_PID=$$
 
-[[ -d ${BASE_DIR} ]] && mkdir -p ${BASE_DIR}
 [[ -d ${BACKUP_DIR} ]] && mkdir -p ${BACKUP_DIR}
 [[ -d ${PROJECT_DIR} ]] && mkdir -p ${PROJECT_DIR}
+[[ ! -f ${WP_ENV} ]] && touch ${WP_ENV}
 
 log(){
   local message=$1
@@ -96,15 +96,13 @@ getRemoteProjectList(){
 addVariable(){
   local var=$1
   local value=$2
-  local command="grep -q $var $WP_ENV || { echo '${var}=${value}' >> $WP_ENV; }"
-  execAction "$command" "$message"
+  grep -q $var $WP_ENV || { echo "${var}=${value}" >> $WP_ENV; }
 }
 
 updateVariable(){
   local var=$1
   local value=$2
-  local command="grep -q $var $WP_ENV && { sed -i 's/${var}.*/${var}=${value}/' $WP_ENV; } || { echo '${var}=${value}' >> $WP_ENV; }"
-  execAction "$command" "$message"
+  grep -q $var $WP_ENV && { sed -i "s/${var}.*/${var}=${value}/" $WP_ENV; } || { echo "${var}=${value}" >> $WP_ENV; }
 }
 
 createRemoteDbBackup(){
@@ -223,7 +221,7 @@ getSSHprojects(){
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
   validatePublicHtmlDir
-  wpProjects=( $(getSshProjectList) )
+  wpProjects=( $(getRemoteProjectList) )
 
   [[ -d ${PROJECT_DIR} ]] && rm -rf ${PROJECT_DIR} || mkdir -p ${PROJECT_DIR}
   for projectName in ${wpProjects[@]}; do mkdir -p ${PROJECT_DIR}/${projectName}; done
