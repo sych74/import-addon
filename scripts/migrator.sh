@@ -150,6 +150,13 @@ setWPconfigVariable(){
   execAction "${command}" "${message}"
 }
 
+getSiteUrl(){
+  local message="Getting WordPress Site URL"
+  local command="${WP_CLI} option get siteurl --path=${WEBROOT_DIR} --quiet"
+  local result=$(execReturn "${command}" "${message}")
+  echo $result
+}
+
 deployProject(){
   for i in "$@"; do
     case $i in
@@ -171,6 +178,7 @@ deployProject(){
   addVariable DB_PASSWORD $(getWPconfigVariable DB_PASSWORD)
   addVariable DB_NAME $(getWPconfigVariable DB_NAME)
   addVariable DB_HOST $(getWPconfigVariable DB_HOST)
+  addVariable SITE_URL $(getSiteUrl)
   execAction "syncContent ${BACKUP_DIR} ${WEBROOT_DIR}" "Sync content from ${BACKUP_DIR} to ${WEBROOT_DIR}"
   execAction "syncDB ${BACKUP_DIR}/${DB_BACKUP}" "Sync database from ${BACKUP_DIR}/${DB_BACKUP} "
   source ${WP_ENV}
