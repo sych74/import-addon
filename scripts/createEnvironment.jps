@@ -1,0 +1,12 @@
+type: install
+name: Test
+settings:
+  fields:
+  - type: envname
+    name: envName
+    randomName: true
+
+onInstall:
+  - install:
+      jps: https://raw.githubusercontent.com/sych74/test/master/test.jps?_r=${fn.random}
+      envName: ${settings.envName}
