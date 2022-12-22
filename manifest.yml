@@ -34,31 +34,40 @@ settings:
         required: true
       - type: string
         inputType: password
-        name: sshPswd
+        name: sshPass
         caption: SSH Password
         default: ''
         required: true
+        
+      - type: separator
+      
+      - type: text
+        caption: SSH Key
+        hideLabel: false
+        hidden: false
+        height: 200
+        width: 200
 
-  import:
+  deploy:
     fields: []
     onBeforeInit: scripts/importOnBeforeInit.js
       
 buttons:
-- caption: Get projects
-  action: getProjects
+- caption: Get SSH projects
+  action: getSSHprojects
   settings: ssh
   title: cPanel/plesk SSH connection
   loadingText: Getting WordPress projects...
   successText: List of WordPress projects received successfully.
   
 - caption: Import
-  action: importProject
-  loadingText: Importing...
-  settings: import
-  successText: The Wordpress project have been successfully imported.
-  title: Import Project
-  submitButtonText: Import
-  confirmText: You are going to import project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
+  action: deployProject
+  loadingText: Deploying...
+  settings: deploy
+  successText: The Wordpress project have been successfully deployed.
+  title: Deploy Project
+  submitButtonText: Deploy project
+  confirmText: You are going to deploy project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
 globals:
   scriptSufix: wp-import
@@ -80,3 +89,7 @@ actions:
     - installDependencies:
     - cmd[${nodes.cp.master.id}]: |-
         bash ${globals.MIGRATOR_DIR}/migrator.sh getSSHprojects --ssh-user=${settings.sshUser} --ssh-password=${settings.sshPass} --ssh-host=${settings.sshHost} --ssh-port=${settings.sshPort};
+        
+  deployProject:
+    - cmd[${nodes.cp.master.id}]: |-
+        bash ${globals.MIGRATOR_DIR}/migrator.sh deployProject --project-name=${settings.project};
