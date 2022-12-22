@@ -8,7 +8,7 @@ globals:
   wp_admin_pass: ${fn.password(10)}
   db_user: user-${fn.random}
   db_pass: ${fn.password(10)}
-  envName: wp-[fn.random]
+  envName: wp-${fn.random}
 
 onInstall:
   - script: /scripts/setGlobals.js?_r=${fn.random}
