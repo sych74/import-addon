@@ -38,8 +38,6 @@ settings:
         caption: SSH Password
         default: ''
         required: true
-        
-      - type: separator
 
   deploy:
     fields: []
@@ -63,7 +61,6 @@ buttons:
   confirmText: You are going to deploy project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
 globals:
-  scriptSufix: wp-import
   migration_dir: /home/jelastic/migrator
 
 onInstall:
@@ -78,11 +75,60 @@ actions:
         [[ -d ${globals.migration_dir} ]] || mkdir ${globals.migration_dir};
         wget ${baseUrl}/scripts/migrator.sh -O ${globals.migration_dir}/migrator.sh;
 
+  deployProject:
+    - if (${settings.isAllDeploy}): deployAllProjects
+    - else: deployOneProject
+
   getSSHprojects:
     - installDependencies:
+    - setGlobals:
+        ssh_user: "${settings.ssh_user}"
+        ssh_pass: "${settings.ssh_pass}"
+        ssh_host: "${settings.ssh_host}"
+        ssh_port: "${settings.ssh_port}"
+
+    - env.control.ApplyNodeGroupData [cp]:
+        data: 
+          globals: "${globals.toJSON()}"
+
     - cmd[${nodes.cp.master.id}]: |-
-        bash ${globals.migration_dir}/migrator.sh getSSHprojects --ssh-user=${settings.ssh_user} --ssh-password=${settings.ssh_pass} --ssh-host=${settings.ssh_host} --ssh-port=${settings.ssh_port};
+        bash ${globals.migration_dir}/migrator.sh getSSHprojects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port};
         
-  deployProject:
+  deployOneProject:
     - cmd[${nodes.cp.master.id}]: |-
         bash ${globals.migration_dir}/migrator.sh deployProject --project-name=${settings.project};
+        
+  deployAllProjects:
+    - importGlobalsFromNodeGroup: cp
+    - script: |
+        import org.json.JSONObject;
+        var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [];
+        var projects = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash /home/jelastic/migrator/migrator.sh getProjectList' }]), true).responses[0].out;
+        var projectList = toNative(new JSONObject(String(projects))).projects;
+        for (var i = 0, n = projectList.length; i < n; i ++) {
+          actions.push({
+            jps: "${baseUrl}/scripts/createEnvironment2.jps?_r=${fn.random}",
+            envGroups: envGroups,
+            settings: {
+              "ssh_user": "${globals.ssh_user}",
+              "ssh_pass": "${globals.ssh_pass}",
+              "ssh_host": "${globals.ssh_host}",
+              "ssh_port": "${globals.ssh_port}",
+              "project_name": projectList[i],
+              "envGroups": envGroups
+            }
+          });
+        }
+        return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
+
+  importGlobalsFromNodeGroup:
+    - script: |
+        var resp = api.env.control.GetNodeGroups("${env.name}", session);
+        if (resp.result != 0) return resp;
+        var groups = resp.object, globals;
+        for (var i = 0, n = groups.length; i < n; i++)
+          if (groups[i].name == "${this}" && groups[i].globals) {
+            globals = new org.yaml.snakeyaml.Yaml().load(groups[i].globals);
+            break;
+          }
+        return { result: 0, onAfterReturn: { setGlobals: globals } };
