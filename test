@@ -1,0 +1,53 @@
+type: update
+name: test
+
+baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
+
+onInstall:
+  - setGlobals:
+      ssh_user: "sych74"
+      ssh_pass: "DMeXSQ82xprD1So%"
+      ssh_port: "7822"
+      ssh_host: "190.92.183.93"
+
+  - env.control.ApplyNodeGroupData [cp]:
+      data: 
+        globals: "${globals.toJSON()}"
+        
+  - deployAllProjects
+
+actions:
+  deployAllProjects:
+    - importGlobalsFromNodeGroup: cp
+    - script: |
+        import org.json.JSONObject;
+        var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [];
+        var projects = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash /home/jelastic/migrator/migrator.sh getProjectList' }]), true).responses[0].out;
+        var projectList = toNative(new JSONObject(String(projects))).projects;
+        for (var i = 0, n = projectList.length; i < n; i ++) {
+          actions.push({
+            jps: "${baseUrl}/scripts/createEnvironment1.jps?_r=${fn.random}",
+            envGroups: envGroups,
+            settings: {
+              "ssh_user": "${globals.ssh_user}",
+              "ssh_pass": "${globals.ssh_pass}",
+              "ssh_host": "${globals.ssh_host}",
+              "ssh_port": "${globals.ssh_port}",
+              "project_name": projectList[i],
+              "envGroups": envGroups
+            }
+          });
+        }
+        return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
+
+  importGlobalsFromNodeGroup:
+    - script: |
+        var resp = api.env.control.GetNodeGroups("${env.name}", session);
+        if (resp.result != 0) return resp;
+        var groups = resp.object, globals;
+        for (var i = 0, n = groups.length; i < n; i++)
+          if (groups[i].name == "${this}" && groups[i].globals) {
+            globals = new org.yaml.snakeyaml.Yaml().load(groups[i].globals);
+            break;
+          }
+        return { result: 0, onAfterReturn: { setGlobals: globals } };
