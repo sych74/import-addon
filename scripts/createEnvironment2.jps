@@ -59,16 +59,17 @@ actions:
         
   importProject:
     - script: | 
-        var onAfterReturn = { setGlobals: {} },
-        glbs = onAfterReturn.setGlobals;
-        var resp = jelastic.env.control.GetEnvInfo('${globals.env_name}', session);
-        if (resp.result != 0) return resp;
-        for (var i = 0, k = resp.nodes; i < k.length; i++) {
+        var envInfo = jelastic.env.control.GetEnvInfo('${globals.env_name}', session);
+        if (envInfo.result != 0) return envInfo;
+        for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
           if (k[i].nodeGroup == 'cp')
-            k[i].ismaster ? glbs["master_id"] = k[i].id : 0;
-        }
-        return { result: 0, onAfterReturn: onAfterReturn };
-       
-    - cmd[${globals.master_id}]: |-
-        bash ${globals.migrator_dir}/migrator.sh getSSHprojects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port};
-        bash ${globals.migrator_dir}/migrator.sh deployProject --project-name=${globals.project_name};
+            master_id = k[i].id;
+        }       
+        var cmd1 = "bash ${globals.migrator_dir}/migrator.sh getSSHprojects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port}";
+        var cmd2 = "bash ${globals.migrator_dir}/migrator.sh deployProject --project-name=${globals.project_name}";       
+        return api.environment.control.ExecCmdById({
+          envName: "${globals.env_name}", 
+          session: session,
+          nodeId: master_id, 
+          commandList: toJSON([{"command": cmd1}, {"command": cmd2}])
+        });
