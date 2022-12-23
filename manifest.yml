@@ -18,35 +18,28 @@ settings:
   ssh:
     fields:
       - type: string
-        name: sshHost
+        name: ssh_host
         caption: SSH Host
         default: ''
         required: true
       - type: string
-        name: sshPort
+        name: ssh_port
         caption: SSH Port
         default: ''
         required: true
       - type: string
-        name: sshUser
+        name: ssh_user
         caption: SSH User
         default: ''
         required: true
       - type: string
         inputType: password
-        name: sshPass
+        name: ssh_pass
         caption: SSH Password
         default: ''
         required: true
         
       - type: separator
-      
-      - type: text
-        caption: SSH Key
-        hideLabel: false
-        hidden: false
-        height: 100
-        width: 600
 
   deploy:
     fields: []
@@ -71,7 +64,7 @@ buttons:
 
 globals:
   scriptSufix: wp-import
-  MIGRATOR_DIR: /home/jelastic/migrator
+  migration_dir: /home/jelastic/migrator
 
 onInstall:
   - installDependencies
@@ -82,14 +75,14 @@ actions:
         rpm -qa | grep -qw sshpass || yum install sshpass -y;
       user: root
     - cmd[${nodes.cp.master.id}]: |-
-        [[ -d ${globals.MIGRATOR_DIR} ]] || mkdir ${globals.MIGRATOR_DIR};
-        wget ${baseUrl}/scripts/migrator.sh -O ${globals.MIGRATOR_DIR}/migrator.sh;
+        [[ -d ${globals.migration_dir} ]] || mkdir ${globals.migration_dir};
+        wget ${baseUrl}/scripts/migrator.sh -O ${globals.migration_dir}/migrator.sh;
 
   getSSHprojects:
     - installDependencies:
     - cmd[${nodes.cp.master.id}]: |-
-        bash ${globals.MIGRATOR_DIR}/migrator.sh getSSHprojects --ssh-user=${settings.sshUser} --ssh-password=${settings.sshPass} --ssh-host=${settings.sshHost} --ssh-port=${settings.sshPort};
+        bash ${globals.migration_dir}/migrator.sh getSSHprojects --ssh-user=${settings.ssh_user} --ssh-password=${settings.ssh_pass} --ssh-host=${settings.ssh_host} --ssh-port=${settings.ssh_port};
         
   deployProject:
     - cmd[${nodes.cp.master.id}]: |-
-        bash ${globals.MIGRATOR_DIR}/migrator.sh deployProject --project-name=${settings.project};
+        bash ${globals.migration_dir}/migrator.sh deployProject --project-name=${settings.project};
