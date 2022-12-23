@@ -20,7 +20,7 @@ settings.fields.push({
   "type": "list",
   "tooltip": "Select the project which you want to import",          
   "name": "project",
-  "required": true,
+  "required": false,
   "values": projectListPrepared
 }, {
   "caption": "Deploy all projects",
