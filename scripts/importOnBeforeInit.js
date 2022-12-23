@@ -22,6 +22,13 @@ settings.fields.push({
   "name": "project",
   "required": true,
   "values": projectListPrepared
+}, {
+  "caption": "Deploy all projects",
+  "type": "checkbox",
+  "name": "isAllDeploy",
+  "value": false,
+  "disabled": false,
+  "tooltip": "Deploy all projects."
 })
 
 return settings;
