@@ -2,23 +2,29 @@ type: install
 id: wp-import-standalone-pro
 name: Standalone Pro
 
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/wordpress-edition/master
+baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
   
 globals:
+  ssh_user: ${settings.ssh_user:"test"}
+  ssh_pass: ${settings.ssh_pass:"test"}
+  ssh_host: ${settings.ssh_host:"test"}
+  ssh_port: ${settings.ssh_port:"test"}
+  project_name: ${settings.project_name:"test"}
+  envGroups: ${settings.envGroups:"test"}
   wp_admin_pass: ${fn.password(10)}
+  migrator_dir: /home/jelastic/migrator
   db_user: user-${fn.random}
   db_pass: ${fn.password(10)}
   envName: wp-${fn.random}
 
 onInstall:
-  - script: /scripts/setGlobals.js?_r=${fn.random}
 
   - install:
       jps: https://raw.githubusercontent.com/jelastic-jps/wordpress/v2.2.0/manifest.yml?_r=${fn.random}
       envName: ${globals.envName}
       loggerName: ${globals.envName}
-      displayName: ${settings.displayName}
-      envGroups: ${settings.envGroups}
+      displayName: ${globals.project_name}
+      envGroups: ${globals.envGroups}
       settings:
         ls-addon: true
         waf: ${settings.waf:true}
@@ -38,3 +44,11 @@ onInstall:
       envName: ${globals.envName}
       data:
         fixedTopologyLayers: 1
+        
+  - install:
+      jps: https://raw.githubusercontent.com/sych74/import-addon/master/manifest.yml?_r=${fn.random}
+      envName: ${globals.envName}
+      
+  - cmd[${nodes.cp.master.id}]: |-
+      bash ${globals.migrator_dir}/migrator.sh getSSHprojects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port};
+      bash ${globals.migrator_dir}/migrator.sh deployProject --project-name=${globals.project_name};
