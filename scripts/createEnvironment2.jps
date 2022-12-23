@@ -1,5 +1,4 @@
 type: install
-id: wp-import-standalone-pro
 name: Standalone Pro
 
 baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
