@@ -18,37 +18,57 @@ globals:
   envName: wp-${fn.random}
 
 onInstall:
+  - createEnv
+  - addLimits
+  - installImportAddon
+  - importProject
 
-  - install:
-      jps: https://raw.githubusercontent.com/jelastic-jps/wordpress/v2.2.0/manifest.yml?_r=${fn.random}
-      envName: ${globals.envName}
-      loggerName: ${globals.envName}
-      displayName: ${globals.project_name}
-      envGroups: ${globals.envGroups}
-      settings:
-        ls-addon: true
-        waf: ${settings.waf:true}
-        wp_protect: ${settings.wp_protect:true}
-        le-addon: ${settings.le-addon:true}
-        cdn-addon: ${settings.cdn-addon:false}
-        mu-addon: false
-        woocommerce: false
-        DB_USER: ${globals.db_user}
-        DB_PASS: ${globals.db_pass}
-        WP_ADMIN_PASS: ${globals.wp_admin_pass}
-        success_email: false
-        project: ${settings.project:default}
-        projectScope: ${settings.projectScope:production}
+actions:
+  createEnv:
+    - install:
+        jps: https://raw.githubusercontent.com/jelastic-jps/wordpress/v2.2.0/manifest.yml?_r=${fn.random}
+        envName: ${globals.envName}
+        loggerName: ${globals.envName}
+        displayName: ${globals.project_name}
+        envGroups: ${globals.envGroups}
+        settings:
+          ls-addon: true
+          waf: ${settings.waf:true}
+          wp_protect: ${settings.wp_protect:true}
+          le-addon: ${settings.le-addon:false}
+          cdn-addon: ${settings.cdn-addon:false}
+          mu-addon: false
+          woocommerce: false
+          DB_USER: ${globals.db_user}
+          DB_PASS: ${globals.db_pass}
+          WP_ADMIN_PASS: ${globals.wp_admin_pass}
+          success_email: false
+          project: ${settings.project:default}
+          projectScope: ${settings.projectScope:production}
 
-  - env.control.ApplyNodeGroupData[cp]:
-      envName: ${globals.envName}
-      data:
-        fixedTopologyLayers: 1
+  addLimits:
+    - env.control.ApplyNodeGroupData[cp]:
+        envName: ${globals.envName}
+        data:
+          fixedTopologyLayers: 1
+
+  installImportAddon:
+    - install:
+        jps: https://raw.githubusercontent.com/sych74/import-addon/master/manifest.yml?_r=${fn.random}
+        envName: ${globals.envName}
         
-  - install:
-      jps: https://raw.githubusercontent.com/sych74/import-addon/master/manifest.yml?_r=${fn.random}
-      envName: ${globals.envName}
-      
-  - cmd[${nodes.cp.master.id}]: |-
-      bash ${globals.migrator_dir}/migrator.sh getSSHprojects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port};
-      bash ${globals.migrator_dir}/migrator.sh deployProject --project-name=${globals.project_name};
+  importProject:
+    - script: | 
+        var onAfterReturn = { setGlobals: {} },
+        glbs = onAfterReturn.setGlobals;
+        var resp = jelastic.env.control.GetEnvInfo('${globals.envName}', session);
+        if (resp.result != 0) return resp;
+        for (var i = 0, k = resp.nodes; i < k.length; i++) {
+          if (k[i].nodeGroup == 'cp')
+            k[i].ismaster ? glbs["master_id"] = k[i].id : 0;
+        }
+        return { result: 0, onAfterReturn: onAfterReturn };
+       
+    - cmd[${globals.master_id}]: |-
+        bash ${globals.migrator_dir}/migrator.sh getSSHprojects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port};
+        bash ${globals.migrator_dir}/migrator.sh deployProject --project-name=${globals.project_name};
