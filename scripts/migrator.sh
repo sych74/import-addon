@@ -189,7 +189,7 @@ deployProject(){
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
   createRemoteDbBackup $PROJECT_NAME
-  downloadProject $PROJECT_NAME
+  execAction "downloadProject $PROJECT_NAME" "Downloading $PROJECT_NAME project from remote host to ${BACKUP_DIR}"
   addVariable DB_USER $(getWPconfigVariable DB_USER)
   addVariable DB_PASSWORD $(getWPconfigVariable DB_PASSWORD)
   addVariable DB_NAME $(getWPconfigVariable DB_NAME)
