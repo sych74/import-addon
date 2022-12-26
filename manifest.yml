@@ -68,17 +68,6 @@ responses:
     type: warning
     message: SSH connection is failed. Please check SSH connection parameters!
 
-  98:
-    type: success
-    message: |
-      An error occurs while recovering the Database Cluster.  
-      Please check the **/var/log/db_recovery.log** log file for details.
-  99:
-    type: success
-    message: |
-      Errors were discovered during the Database Cluster diagnostic.
-      Please check the **/var/log/db_recovery.log** log file for details. Click the "Cluster Recovery" button in the add-on's tab for automatic recovery.
-
 onInstall:
   - installDependencies
 
