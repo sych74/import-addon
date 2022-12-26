@@ -2,9 +2,11 @@
 
 SUCCESS_CODE=0
 FAIL_CODE=99
-RUN_LOG="/home/jelastic/migrator/migrator.log"
+AUTHORIZATION_ERROR_CODE=701
+
 REMOTE_DIR="public_html"
 BASE_DIR="/home/jelastic/migrator"
+RUN_LOG="${BASE_DIR}/migrator.log"
 BACKUP_DIR="${BASE_DIR}/backup"
 DB_BACKUP="db_backup.sql"
 PROJECT_DIR="${BASE_DIR}/project"
@@ -211,6 +213,17 @@ getProjectList(){
   echo $output_json
 }
 
+checkSSHconnection(){
+  local command="${SSH} \" exit 0\""
+  local message="Checking SSH connection to remote host"
+  stdout=$( { ${command}; } 2>&1 ) && { log "${message}...done";  } || {
+    log "${message}...failed\n${stdout}\n";
+    local output_json="{\"result\": ${AUTHORIZATION_ERROR_CODE}, \"out\": \"${message}...failed\"}"
+    echo $output_json
+    exit 0
+  }
+}
+
 getSSHprojects(){
   for i in "$@"; do
     case $i in
@@ -245,6 +258,8 @@ getSSHprojects(){
   updateVariable SSH_HOST ${SSH_HOST}
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
+
+  checkSSHconnection
   validatePublicHtmlDir
   wpProjects=( $(getRemoteProjectList) )
 
