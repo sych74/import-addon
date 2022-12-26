@@ -28,7 +28,7 @@ settings.fields.push({
   "name": "isAllDeploy",
   "value": false,
   "disabled": false,
-  "tooltip": "Deploy all projects."
+  "tooltip": "Migrate all projects to separate WordPress environments."
 })
 
 return settings;
