@@ -168,8 +168,14 @@ updateSiteUrl(){
 
 updateHomeUrl(){
   local home_url=$1
-  local message="Updating WordPress Site URL to ${home_url}"
+  local message="Updating WordPress Home to ${home_url}"
   local command="${WP_CLI} option update home ${home_url} --path=${WEBROOT_DIR} --quiet"
+  execAction "${command}" "${message}"
+}
+
+flushCache(){
+  local message="Flushing caches"
+  local command="${WP_CLI} cache flush --path=${WEBROOT_DIR} --quiet"
   execAction "${command}" "${message}"
 }
 
@@ -205,6 +211,7 @@ deployProject(){
   setWPconfigVariable WP_DEBUG "false"
   updateSiteUrl $SITE_URL
   updateHomeUrl $SITE_URL
+  flushCache
 }
 
 getProjectList(){
