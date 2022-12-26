@@ -1,10 +1,10 @@
 type: update
 jpsVersion: 6.1.1
-name: WordPress Import
-id: wp-import
+name: WordPress Migrator
+id: wp-migrator
 targetEditions: any
 logo: /images/migrate-logo.svg
-description: Add-On for impoer the WordPress applications.
+description: Migrate your web site from remote WordPress installation
 baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
 
 targetNodes:
@@ -19,7 +19,7 @@ settings:
     fields:
       - type: string
         name: ssh_host
-        caption: SSH Host
+        caption: SSH Host/IP
         default: ''
         required: true
       - type: string
@@ -44,21 +44,22 @@ settings:
     onBeforeInit: scripts/importOnBeforeInit.js
       
 buttons:
-- caption: Get SSH projects
+- caption: Get projects
   action: getSSHprojects
   settings: ssh
-  title: cPanel/plesk SSH connection
+  title: SSH connection detail
   loadingText: Getting WordPress projects...
+  submitButtonText: Get projects
   successText: List of WordPress projects received successfully.
   
-- caption: Import
+- caption: Migrate
   action: deployProject
-  loadingText: Deploying...
+  loadingText: Migrating...
   settings: deploy
-  successText: The Wordpress project have been successfully deployed.
-  title: Deploy Project
-  submitButtonText: Deploy project
-  confirmText: You are going to deploy project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
+  successText: The Wordpress project have been successfully migrated.
+  title: Migrate Project
+  submitButtonText: Migrate project
+  confirmText: You are going to migrate project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
 globals:
   migration_dir: /home/jelastic/migrator
