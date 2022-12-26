@@ -67,7 +67,7 @@ globals:
 responses:    
   701:
     type: warning
-    message: SSH connection is failed. Please check SSH connection parameters!
+    message: SSH connection is failed. Please check SSH connection details!
 
 onInstall:
   - installDependencies
