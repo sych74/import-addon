@@ -216,7 +216,7 @@ getProjectList(){
 checkSSHconnection(){
   local command="${SSH} \"exit 0\""
   local message="Checking SSH connection to remote host"
-  action_to_base64=$(echo $action|base64 -w 0)
+  action_to_base64=$(echo $command|base64 -w 0)
   stdout=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { log "${message}...done"; } || {
     log "${message}...failed\n${stdout}\n";
     local output_json="{\"result\": ${AUTHORIZATION_ERROR_CODE}, \"out\": \"${message}...failed\"}"
