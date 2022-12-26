@@ -23,7 +23,7 @@ settings.fields.push({
   "required": false,
   "values": projectListPrepared
 }, {
-  "caption": "Deploy all projects",
+  "caption": "Migrate all projects to separate WordPress environments.",
   "type": "checkbox",
   "name": "isAllDeploy",
   "value": false,
