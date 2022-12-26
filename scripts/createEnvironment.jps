@@ -17,7 +17,6 @@ globals:
   env_name: wp-${fn.random}
 
 onInstall:
-  - log: -------${globals.env_name}
   - createEnv
   - addLimits
   - installImportAddon
