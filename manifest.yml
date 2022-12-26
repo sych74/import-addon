@@ -3,7 +3,7 @@ jpsVersion: 6.1.1
 name: WordPress Import
 id: wp-import
 targetEditions: any
-logo: /images/backup-logo.svg
+logo: /images/migrate-logo.svg
 description: Add-On for impoer the WordPress applications.
 baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
 
