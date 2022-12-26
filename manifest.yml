@@ -126,7 +126,7 @@ actions:
         var projectList = toNative(new JSONObject(String(projects))).projects;
         for (var i = 0, n = projectList.length; i < n; i ++) {
           actions.push({
-            jps: "${baseUrl}/scripts/createEnvironment2.jps?_r=${fn.random}",
+            jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
             envGroups: envGroups,
             settings: {
               "ssh_user": "${globals.ssh_user}",
