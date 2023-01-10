@@ -110,11 +110,14 @@ actions:
   deployAllProjects:
     - importGlobalsFromNodeGroup: cp
     - script: |
-        import org.json.JSONObject;
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [];
         var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash /home/jelastic/migrator/migrator.sh getProjectList' }]), true);
         if (resp.result != 0) return resp;
-        var projectList = toNative(new JSONObject(String(resp.responses[0].out))).projects;
+        try {
+          var projectList = JSON.parse(resp.responses[0].out).projects || [];
+        } catch (ex) {
+          return { type: "error", message: "cannot parse project list: " + ex }
+        }
         for (var i = 0, n = projectList.length; i < n; i ++) {
           actions.push({
             jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
