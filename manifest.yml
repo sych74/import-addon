@@ -114,8 +114,7 @@ actions:
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [];
         var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash /home/jelastic/migrator/migrator.sh getProjectList' }]), true);
         if (resp.result != 0) return resp;
-        var projects = resp.responses[0].out;
-        var projectList = toNative(new JSONObject(String(projects))).projects;
+        var projectList = toNative(new JSONObject(String(resp.responses[0].out))).projects;
         for (var i = 0, n = projectList.length; i < n; i ++) {
           actions.push({
             jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
