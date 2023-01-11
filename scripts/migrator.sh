@@ -13,7 +13,7 @@ PROJECT_DIR="${BASE_DIR}/project"
 WEBROOT_DIR="/var/www/webroot/ROOT"
 WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
-WP_CLI="${BASE_DIR}/wp"
+WP_CLI="${BASE_DIR}/wp --path=${WEBROOT_DIR}"
 
 trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 1" TERM
 export TOP_PID=$$
