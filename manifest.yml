@@ -111,7 +111,7 @@ actions:
     - importGlobalsFromNodeGroup: cp
     - script: |
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [];
-        var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash /home/jelastic/migrator/migrator.sh getProjectList' }]), true);
+        var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash /tmp/migrator/migrator.sh getProjectList' }]), true);
         if (resp.result != 0) return resp;
         try {
           var projectList = JSON.parse(resp.responses[0].out).projects || [];
