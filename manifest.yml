@@ -5,7 +5,7 @@ id: wp-migrator
 targetEditions: any
 logo: /images/migrate-logo.svg
 description: Migrate your web site from remote WordPress installation
-baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
+baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-268
 
 targetNodes:
   nodeType:
