@@ -62,7 +62,7 @@ buttons:
   confirmText: You are going to migrate project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
 globals:
-  migration_dir: /home/jelastic/migrator
+  migration_dir: /tmp/migrator
 
 responses:    
   701:
