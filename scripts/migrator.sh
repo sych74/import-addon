@@ -139,7 +139,7 @@ syncDB(){
 getWPconfigVariable(){
   local var=$1
   local message="Getting $var from ${WP_CONFIG}"
-  local command="${WP_CLI} config get ${var} --config-file=${WP_CONFIG} --quiet"
+  local command="${WP_CLI} config get ${var} --config-file=${WP_CONFIG} --quiet --path=${WEBROOT_DIR}"
   local result=$(execReturn "${command}" "${message}")
   echo $result
 }
@@ -148,13 +148,13 @@ setWPconfigVariable(){
   local var=$1
   local value=$2
   local message="Updating $var in the ${WP_CONFIG}"
-  local command="${WP_CLI} config set ${var} ${value} --config-file=${WP_CONFIG} --quiet"
+  local command="${WP_CLI} config set ${var} ${value} --config-file=${WP_CONFIG} --quiet --path=${WEBROOT_DIR}"
   execAction "${command}" "${message}"
 }
 
 getSiteUrl(){
   local message="Getting WordPress Site URL"
-  local command="${WP_CLI} option get siteurl --path=${WEBROOT_DIR} --quiet"
+  local command="${WP_CLI} option get siteurl --path=${WEBROOT_DIR} --quiet --path=${WEBROOT_DIR}"
   local result=$(execReturn "${command}" "${message}")
   echo $result
 }
@@ -162,20 +162,20 @@ getSiteUrl(){
 updateSiteUrl(){
   local site_url=$1
   local message="Updating WordPress Site URL to ${site_url}"
-  local command="${WP_CLI} option update siteurl ${site_url} --path=${WEBROOT_DIR} --quiet"
+  local command="${WP_CLI} option update siteurl ${site_url} --path=${WEBROOT_DIR} --quiet --path=${WEBROOT_DIR}"
   execAction "${command}" "${message}"
 }
 
 updateHomeUrl(){
   local home_url=$1
   local message="Updating WordPress Home to ${home_url}"
-  local command="${WP_CLI} option update home ${home_url} --path=${WEBROOT_DIR} --quiet"
+  local command="${WP_CLI} option update home ${home_url} --path=${WEBROOT_DIR} --quiet --path=${WEBROOT_DIR}"
   execAction "${command}" "${message}"
 }
 
 flushCache(){
   local message="Flushing caches"
-  local command="${WP_CLI} cache flush --path=${WEBROOT_DIR} --quiet"
+  local command="${WP_CLI} cache flush --path=${WEBROOT_DIR} --quiet --path=${WEBROOT_DIR}"
   execAction "${command}" "${message}"
 }
 
