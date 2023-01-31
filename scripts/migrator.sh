@@ -5,7 +5,7 @@ FAIL_CODE=99
 AUTHORIZATION_ERROR_CODE=701
 
 REMOTE_DIR="public_html"
-BASE_DIR="/home/jelastic/migrator"
+BASE_DIR="/tmp/migrator"
 RUN_LOG="${BASE_DIR}/migrator.log"
 BACKUP_DIR="${BASE_DIR}/backup"
 DB_BACKUP="db_backup.sql"
