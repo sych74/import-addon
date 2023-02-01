@@ -126,7 +126,7 @@ downloadProject(){
 syncContent(){
   local src=$1
   local dst=$2
-  rm -rf $dst/{*,.*}; rsync -Sa --progress $src/ $dst/;
+  rm -rf $dst/{*,.*}; rsync -Sa --no-p --no-g --omit-dir-times --progress $src/ $dst/;
 }
 
 syncDB(){
@@ -179,6 +179,13 @@ flushCache(){
   execAction "${command}" "${message}"
 }
 
+
+restoreWPconfig(){
+  local message="Restoring ${WP_CONFIG}"
+  local command="[ -f ${BASE_DIR}/wp-config.php ] && cat ${BASE_DIR}/wp-config.php > ${WP_CONFIG}"
+  execAction "${command}" "${message}"
+}
+
 deployProject(){
   for i in "$@"; do
     case $i in
@@ -194,6 +201,10 @@ deployProject(){
 
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
+
+  ### Restore original wp-config.php
+  [ -f ${BASE_DIR}/wp-config.php ] && cat ${BASE_DIR}/wp-config.php > ${WP_CONFIG}
+
   createRemoteDbBackup $PROJECT_NAME
   execAction "downloadProject $PROJECT_NAME" "Downloading $PROJECT_NAME project from remote host to ${BACKUP_DIR}"
   addVariable DB_USER $(getWPconfigVariable DB_USER)
@@ -275,6 +286,9 @@ getSSHprojects(){
   for projectName in ${wpProjects[@]}; do mkdir -p ${PROJECT_DIR}/${projectName}; done
   getProjectList
 }
+
+### Backuping wp-config.php to /tmp/migrator/ dir
+[ ! -f ${BASE_DIR}/wp-config.php \] && cp ${WP_CONFIG} ${BASE_DIR}
 
 execAction "installWP_CLI" 'Install WP-CLI'
 
