@@ -64,7 +64,7 @@ buttons:
   confirmText: You are going to migrate project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
 globals:
-  migration_dir: /tmp/migrator
+  migration_dir: "$HOME/migrator"
 
 responses:    
   701:
@@ -75,7 +75,7 @@ responses:
     type: warning
     message: |
       Errors were discovered during the project migration.
-      Please check the **/tmp/migrator/migrator.log** log file for details.
+      Please check the **/log/migrator.log** log file for details.
 
 onInstall:
   - installDependencies
