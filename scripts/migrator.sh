@@ -6,7 +6,7 @@ AUTHORIZATION_ERROR_CODE=701
 
 REMOTE_DIR="public_html"
 BASE_DIR="$HOME/migrator"
-RUN_LOG="${BASE_DIR}/migrator.log"
+RUN_LOG="/var/log/migrator.log"
 BACKUP_DIR="${BASE_DIR}/backup"
 DB_BACKUP="db_backup.sql"
 PROJECT_DIR="${BASE_DIR}/project"
