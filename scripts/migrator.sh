@@ -15,7 +15,7 @@ WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
 WP_CLI="${BASE_DIR}/wp"
 
-trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 1" TERM
+trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 0" TERM
 export TOP_PID=$$
 
 [[ -d ${BACKUP_DIR} ]] && mkdir -p ${BACKUP_DIR}
