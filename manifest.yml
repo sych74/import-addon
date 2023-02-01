@@ -48,6 +48,7 @@ buttons:
   action: getSSHprojects
   settings: ssh
   title: SSH connection detail
+  logsPath: "/tmp/migrator/migrator.log"
   loadingText: Getting WordPress projects...
   submitButtonText: Get projects
   successText: List of WordPress projects received successfully.
@@ -58,6 +59,7 @@ buttons:
   settings: deploy
   successText: The Wordpress project have been successfully migrated.
   title: Migrate Project
+  logsPath: "/tmp/migrator/migrator.log"
   submitButtonText: Migrate project
   confirmText: You are going to migrate project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
@@ -68,6 +70,12 @@ responses:
   701:
     type: warning
     message: SSH connection is failed. Please check SSH connection details!
+    
+  99:
+    type: warning
+    message: |
+      Errors were discovered during the project migration.
+      Please check the **/tmp/migrator/migrator.log** log file for details.
 
 onInstall:
   - installDependencies
@@ -104,9 +112,12 @@ actions:
         return JSON.parse(resp.responses[0].out).result;
 
   deployOneProject:
-    - cmd[${nodes.cp.master.id}]: |-
-        bash ${globals.migration_dir}/migrator.sh deployProject --project-name=${settings.project};
-        
+    - script: |
+        var command = "bash ${globals.migration_dir}/migrator.sh deployProject --project-name=${settings.project}";
+        resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
+        if (resp.result != 0) return resp;
+        return JSON.parse(resp.responses[0].out).result;
+          
   deployAllProjects:
     - importGlobalsFromNodeGroup: cp
     - script: |
