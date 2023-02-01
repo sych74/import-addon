@@ -223,6 +223,7 @@ deployProject(){
   updateSiteUrl $SITE_URL
   updateHomeUrl $SITE_URL
   flushCache
+  echo "{\"result\": 0}"
 }
 
 getProjectList(){
