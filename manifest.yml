@@ -41,7 +41,7 @@ settings:
 
   deploy:
     fields: []
-    onBeforeInit: scripts/importOnBeforeInit.js
+    onBeforeInit: scripts/importOnBeforeInit.js?_r=${fn.random}
       
 buttons:
 - caption: Get projects
