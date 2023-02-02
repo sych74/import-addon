@@ -5,7 +5,7 @@ id: wp-migrator
 targetEditions: any
 logo: /images/migrate-logo.svg
 description: Migrate your web site from remote WordPress installation
-baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
+baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-268
 
 targetNodes:
   nodeType:
@@ -41,13 +41,14 @@ settings:
 
   deploy:
     fields: []
-    onBeforeInit: scripts/importOnBeforeInit.js
+    onBeforeInit: scripts/importOnBeforeInit.js?_r=${fn.random}
       
 buttons:
 - caption: Get projects
   action: getSSHprojects
   settings: ssh
   title: SSH connection detail
+  logsPath: /var/log/migrator.log
   loadingText: Getting WordPress projects...
   submitButtonText: Get projects
   successText: List of WordPress projects received successfully.
@@ -58,16 +59,23 @@ buttons:
   settings: deploy
   successText: The Wordpress project have been successfully migrated.
   title: Migrate Project
+  logsPath: /var/log/migrator.log
   submitButtonText: Migrate project
   confirmText: You are going to migrate project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
 globals:
-  migration_dir: /home/jelastic/migrator
+  migration_dir: "$HOME/migrator"
 
 responses:    
   701:
     type: warning
     message: SSH connection is failed. Please check SSH connection details!
+    
+  99:
+    type: warning
+    message: |
+      Errors were discovered during the project migration.
+      Please check the **/var/log/migrator.log** log file for details.
 
 onInstall:
   - installDependencies
@@ -76,6 +84,8 @@ actions:
   installDependencies:
     - cmd[${nodes.cp.master.id}]: |-
         rpm -qa | grep -qw sshpass || yum install sshpass -y;
+        echo "WordPress migrator add-on logs" > /var/log/migrator.log;
+        chown jelastic /var/log/migrator.log;
       user: root
     - cmd[${nodes.cp.master.id}]: |-
         [[ -d ${globals.migration_dir} ]] || mkdir ${globals.migration_dir};
@@ -104,14 +114,17 @@ actions:
         return JSON.parse(resp.responses[0].out).result;
 
   deployOneProject:
-    - cmd[${nodes.cp.master.id}]: |-
-        bash ${globals.migration_dir}/migrator.sh deployProject --project-name=${settings.project};
-        
+    - script: |
+        var command = "bash ${globals.migration_dir}/migrator.sh deployProject --project-name=${settings.project}";
+        resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
+        if (resp.result != 0) return resp;
+        return JSON.parse(resp.responses[0].out).result;
+          
   deployAllProjects:
     - importGlobalsFromNodeGroup: cp
     - script: |
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [];
-        var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash /home/jelastic/migrator/migrator.sh getProjectList' }]), true);
+        var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList' }]), true);
         if (resp.result != 0) return resp;
         try {
           var projectList = JSON.parse(resp.responses[0].out).projects || [];

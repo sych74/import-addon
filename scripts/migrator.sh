@@ -5,8 +5,8 @@ FAIL_CODE=99
 AUTHORIZATION_ERROR_CODE=701
 
 REMOTE_DIR="public_html"
-BASE_DIR="/home/jelastic/migrator"
-RUN_LOG="${BASE_DIR}/migrator.log"
+BASE_DIR="$HOME/migrator"
+RUN_LOG="/var/log/migrator.log"
 BACKUP_DIR="${BASE_DIR}/backup"
 DB_BACKUP="db_backup.sql"
 PROJECT_DIR="${BASE_DIR}/project"
@@ -15,7 +15,7 @@ WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
 WP_CLI="${BASE_DIR}/wp"
 
-trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 1" TERM
+trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 0" TERM
 export TOP_PID=$$
 
 [[ -d ${BACKUP_DIR} ]] && mkdir -p ${BACKUP_DIR}
@@ -126,7 +126,7 @@ downloadProject(){
 syncContent(){
   local src=$1
   local dst=$2
-  rm -rf $dst/{*,.*}; rsync -Sa --progress $src/ $dst/;
+  rm -rf $dst/{*,.*}; rsync -Sa --no-p --no-g --omit-dir-times --progress $src/ $dst/;
 }
 
 syncDB(){
@@ -139,7 +139,7 @@ syncDB(){
 getWPconfigVariable(){
   local var=$1
   local message="Getting $var from ${WP_CONFIG}"
-  local command="${WP_CLI} config get ${var} --config-file=${WP_CONFIG} --quiet"
+  local command="${WP_CLI} config get ${var} --config-file=${WP_CONFIG} --quiet --path=${WEBROOT_DIR}"
   local result=$(execReturn "${command}" "${message}")
   echo $result
 }
@@ -148,13 +148,13 @@ setWPconfigVariable(){
   local var=$1
   local value=$2
   local message="Updating $var in the ${WP_CONFIG}"
-  local command="${WP_CLI} config set ${var} ${value} --config-file=${WP_CONFIG} --quiet"
+  local command="${WP_CLI} config set ${var} ${value} --config-file=${WP_CONFIG} --quiet --path=${WEBROOT_DIR}"
   execAction "${command}" "${message}"
 }
 
 getSiteUrl(){
   local message="Getting WordPress Site URL"
-  local command="${WP_CLI} option get siteurl --path=${WEBROOT_DIR} --quiet"
+  local command="${WP_CLI} option get siteurl --path=${WEBROOT_DIR} --quiet --path=${WEBROOT_DIR}"
   local result=$(execReturn "${command}" "${message}")
   echo $result
 }
@@ -162,20 +162,27 @@ getSiteUrl(){
 updateSiteUrl(){
   local site_url=$1
   local message="Updating WordPress Site URL to ${site_url}"
-  local command="${WP_CLI} option update siteurl ${site_url} --path=${WEBROOT_DIR} --quiet"
+  local command="${WP_CLI} option update siteurl ${site_url} --path=${WEBROOT_DIR} --quiet --path=${WEBROOT_DIR}"
   execAction "${command}" "${message}"
 }
 
 updateHomeUrl(){
   local home_url=$1
   local message="Updating WordPress Home to ${home_url}"
-  local command="${WP_CLI} option update home ${home_url} --path=${WEBROOT_DIR} --quiet"
+  local command="${WP_CLI} option update home ${home_url} --path=${WEBROOT_DIR} --quiet --path=${WEBROOT_DIR}"
   execAction "${command}" "${message}"
 }
 
 flushCache(){
   local message="Flushing caches"
-  local command="${WP_CLI} cache flush --path=${WEBROOT_DIR} --quiet"
+  local command="${WP_CLI} cache flush --path=${WEBROOT_DIR} --quiet --path=${WEBROOT_DIR}"
+  execAction "${command}" "${message}"
+}
+
+
+restoreWPconfig(){
+  local message="Restoring ${WP_CONFIG}"
+  local command="[ -f ${BASE_DIR}/wp-config.php ] && cat ${BASE_DIR}/wp-config.php > ${WP_CONFIG}"
   execAction "${command}" "${message}"
 }
 
@@ -194,6 +201,10 @@ deployProject(){
 
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
+
+  ### Restore original wp-config.php
+  [ -f ${BASE_DIR}/wp-config.php ] && cat ${BASE_DIR}/wp-config.php > ${WP_CONFIG}
+
   createRemoteDbBackup $PROJECT_NAME
   execAction "downloadProject $PROJECT_NAME" "Downloading $PROJECT_NAME project from remote host to ${BACKUP_DIR}"
   addVariable DB_USER $(getWPconfigVariable DB_USER)
@@ -212,6 +223,7 @@ deployProject(){
   updateSiteUrl $SITE_URL
   updateHomeUrl $SITE_URL
   flushCache
+  echo "{\"result\": 0}"
 }
 
 getProjectList(){
@@ -275,6 +287,9 @@ getSSHprojects(){
   for projectName in ${wpProjects[@]}; do mkdir -p ${PROJECT_DIR}/${projectName}; done
   getProjectList
 }
+
+### Backuping wp-config.php to /tmp/migrator/ dir
+[ ! -f ${BASE_DIR}/wp-config.php \] && cp ${WP_CONFIG} ${BASE_DIR}
 
 execAction "installWP_CLI" 'Install WP-CLI'
 

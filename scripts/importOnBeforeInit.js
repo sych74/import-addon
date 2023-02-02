@@ -1,5 +1,5 @@
 import org.json.JSONObject;
-var projects = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash /home/jelastic/migrator/migrator.sh getProjectList' }]), true).responses[0].out;
+var projects = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList' }]), true).responses[0].out;
 var projectList = toNative(new JSONObject(String(projects))).projects;
 var projectListPrepared = prepareProjects(projectList);
       
