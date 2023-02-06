@@ -205,6 +205,9 @@ deployProject(){
   ### Restore original wp-config.php
   [ -f ${BASE_DIR}/wp-config.php ] && cat ${BASE_DIR}/wp-config.php > ${WP_CONFIG}
 
+  ### Delete custom define wp-jelastic.php
+  sed -i '/wp-jelastic.php/d' ${WP_CONFIG}
+
   createRemoteDbBackup $PROJECT_NAME
   execAction "downloadProject $PROJECT_NAME" "Downloading $PROJECT_NAME project from remote host to ${BACKUP_DIR}"
   addVariable DB_USER $(getWPconfigVariable DB_USER)
@@ -290,9 +293,6 @@ getSSHprojects(){
 
 ### Backuping wp-config.php to /tmp/migrator/ dir
 [ ! -f ${BASE_DIR}/wp-config.php \] && cp ${WP_CONFIG} ${BASE_DIR}
-
-### Delete custom define wp-jelastic.php
-sed -i '/wp-jelastic.php/d' ${WP_CONFIG}
 
 execAction "installWP_CLI" 'Install WP-CLI'
 
