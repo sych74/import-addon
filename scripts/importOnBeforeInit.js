@@ -22,13 +22,17 @@ settings.fields.push({
   "name": "project",
   "required": false,
   "values": projectListPrepared
-}, {
-  "caption": "Migrate all projects to separate WordPress environments.",
-  "type": "checkbox",
-  "name": "isAllDeploy",
-  "value": false,
-  "disabled": false,
-  "tooltip": "Migrate all projects to separate WordPress environments."
 })
+
+if (projectListPrepared.length > 1) {
+  settings.fields.push({
+    "caption": "Migrate all projects to separate WordPress environments.",
+    "type": "checkbox",
+    "name": "isAllDeploy",
+    "value": false,
+    "disabled": false,
+    "tooltip": "Migrate all projects to separate WordPress environments."
+  })
+}
 
 return settings;
