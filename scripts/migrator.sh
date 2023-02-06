@@ -291,6 +291,9 @@ getSSHprojects(){
 ### Backuping wp-config.php to /tmp/migrator/ dir
 [ ! -f ${BASE_DIR}/wp-config.php \] && cp ${WP_CONFIG} ${BASE_DIR}
 
+### Delete custom define wp-jelastic.php
+sed -i '/wp-jelastic.php/d' ${WP_CONFIG}
+
 execAction "installWP_CLI" 'Install WP-CLI'
 
 case ${1} in
