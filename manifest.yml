@@ -82,7 +82,7 @@ onInstall:
 
 actions:
   installDependencies:
-    - cmd[${nodes.cp.master.id}]: |-
+    - cmd[cp]: |-
         rpm -qa | grep -qw sshpass || yum install sshpass -y;
         echo "WordPress migrator add-on logs" > /var/log/migrator.log;
         chown jelastic /var/log/migrator.log;
