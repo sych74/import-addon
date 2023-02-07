@@ -48,7 +48,6 @@ buttons:
   action: getSSHprojects
   settings: ssh
   title: SSH connection detail
-  logsPath: /var/log/migrator.log
   loadingText: Getting WordPress projects...
   submitButtonText: Get projects
   successText: List of WordPress projects received successfully.
@@ -59,7 +58,6 @@ buttons:
   settings: deploy
   successText: The Wordpress project have been successfully migrated.
   title: Migrate Project
-  logsPath: /var/log/migrator.log
   submitButtonText: Migrate project
   confirmText: You are going to migrate project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
@@ -75,7 +73,7 @@ responses:
     type: warning
     message: |
       Errors were discovered during the project migration.
-      Please check the **/var/log/migrator.log** log file for details.
+      Please check the **/var/log/migrator.log** log file on master node for details.
 
 onInstall:
   - installDependencies
