@@ -73,7 +73,7 @@ responses:
     type: warning
     message: |
       Errors were discovered during the project migration.
-      Please check the **/var/log/migrator.log** log file on master node for details.
+      Please check the **/var/log/migrator.log** log file on master node of CP layer for details.
 
 onInstall:
   - installDependencies
