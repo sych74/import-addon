@@ -16,6 +16,7 @@ targetNodes:
 
 settings:
   ssh:
+    submitUnchanged: true
     fields:
       - type: string
         name: ssh_host
