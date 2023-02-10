@@ -21,6 +21,7 @@ settings.fields.push({
   "tooltip": "Select the project which you want to import",          
   "name": "project",
   "required": false,
+  "multiSelect": true,
   "values": projectListPrepared
 })
 
