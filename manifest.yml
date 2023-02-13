@@ -91,8 +91,10 @@ actions:
         wget ${baseUrl}/scripts/migrator.sh -O ${globals.migration_dir}/migrator.sh;
 
   deployProject:
-    - if (${settings.isAllDeploy}): deployAllProjects
-    - else: deployOneProject
+    script: |
+      var projects = '${settings.project}'.split(','), action;
+      action = (projects.length > 1 || '${settings.isAllDeploy}' == 'true') ? "deployAllProjects" : "deployOneProject";
+      return { result: 0, onAfterReturn: action };
 
   getSSHprojects:
     - installDependencies:
@@ -122,14 +124,14 @@ actions:
   deployAllProjects:
     - importGlobalsFromNodeGroup: cp
     - script: |
-        var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [];
+        var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [], projectList = [];
         var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList' }]), true);
         if (resp.result != 0) return resp;
         try {
-          var projectList = JSON.parse(resp.responses[0].out).projects || [];
+          projectList = JSON.parse(resp.responses[0].out).projects || [];
         } catch (ex) {
           return { type: "error", message: "cannot parse project list: " + ex }
-        }
+        } 
         for (var i = 0, n = projectList.length; i < n; i ++) {
           actions.push({
             jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
