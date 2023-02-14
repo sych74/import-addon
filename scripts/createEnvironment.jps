@@ -53,7 +53,7 @@ actions:
 
   installImportAddon:
     - install:
-        jps: https://raw.githubusercontent.com/sych74/import-addon/master/manifest.yml?_r=${fn.random}
+        jps: https://raw.githubusercontent.com/sych74/import-addon/WP-282/manifest.yml?_r=${fn.random}
         envName: ${globals.env_name}
         
   importProject:
