@@ -3,23 +3,21 @@
 SUCCESS_CODE=0
 FAIL_CODE=99
 AUTHORIZATION_ERROR_CODE=701
-
-REMOTE_DIR="public_html"
+WP_TOOLKIT_ERROR_CODE=702
 BASE_DIR="$HOME/migrator"
 RUN_LOG="/var/log/migrator.log"
 BACKUP_DIR="${BASE_DIR}/backup"
 DB_BACKUP="db_backup.sql"
-PROJECT_DIR="${BASE_DIR}/project"
 WEBROOT_DIR="/var/www/webroot/ROOT"
 WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
+WP_PROJECTS="projects.json"
 WP_CLI="${BASE_DIR}/wp"
 
 trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 0" TERM
 export TOP_PID=$$
 
 [[ -d ${BACKUP_DIR} ]] && mkdir -p ${BACKUP_DIR}
-[[ -d ${PROJECT_DIR} ]] && mkdir -p ${PROJECT_DIR}
 [[ ! -f ${WP_ENV} ]] && touch ${WP_ENV}
 
 log(){
@@ -82,17 +80,24 @@ execSshReturn(){
   }
 }
 
-validatePublicHtmlDir(){
-  local command="${SSH} \"[[ -d ${REMOTE_DIR} ]] && {  echo 'true'; } || { echo 'false'; } \""
-  local message="Checking ${REMOTE_DIR} directory"
-  result=$(execSshReturn "$command" "$message")
+validateWPtoolkit(){
+  local command="${SSH} \"command -v wp-toolkit\""
+  local message="Checking WP Toolkit on remote host"
+  action_to_base64=$(echo $command|base64 -w 0)
+  stdout=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { log "${message}...done"; } || {
+    log "${message}...failed\n${stdout}\n";
+    local output_json="{\"result\": ${WP_TOOLKIT_ERROR_CODE}, \"out\": \"${message}...failed\"}"
+    echo $output_json
+    exit 0
+  }
 }
 
 getRemoteProjectList(){
-  local command="${SSH} \"find public_html -name 'wp-config.php' | grep -o -P '(?<=public_html/).*(?=/wp-config.php)' | sort -u \""
-  local message="Get wordpress directories"
-  local remote_projects=$(execSshReturn "$command" "$message")
-  echo $remote_projects
+  source ${WP_ENV}
+  local generateProjectlist="${SSH} \" wp-toolkit --list -format json > ${WP_PROJECTS} \""
+  local getProjectlist="sshpass -p ${SSH_PASSWORD} scp -P ${SSH_PORT} ${SSH_USER}@${SSH_HOST}:${WP_PROJECTS} ${BASE_DIR}/${WP_PROJECTS}"
+  execSshAction "${generateProjectlist}" "Generate projects list on remote host by wp-toolkit"
+  execAction "${getProjectlist}" "Get projects list to local host"
 }
 
 addVariable(){
@@ -230,8 +235,8 @@ deployProject(){
 }
 
 getProjectList(){
-  local project_list=$(ls -Qm ${PROJECT_DIR});
-  local output_json="{\"result\": 0, \"projects\": [${project_list}]}"
+  local project_list=$(cat ${BASE_DIR}/${WP_PROJECTS});
+  local output_json="{\"result\": 0, \"projects\": ${project_list}}"
   echo $output_json
 }
 
@@ -283,11 +288,8 @@ getSSHprojects(){
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
 
   checkSSHconnection
-  validatePublicHtmlDir
-  wpProjects=( $(getRemoteProjectList) )
-
-  [[ -d ${PROJECT_DIR} ]] && rm -rf ${PROJECT_DIR} || mkdir -p ${PROJECT_DIR}
-  for projectName in ${wpProjects[@]}; do mkdir -p ${PROJECT_DIR}/${projectName}; done
+  validateWPtoolkit
+  getRemoteProjectList
   getProjectList
 }
 
