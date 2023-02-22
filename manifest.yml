@@ -116,7 +116,7 @@ actions:
 
   deployOneProject:
     - script: |
-        var command = "bash ${globals.migration_dir}/migrator.sh deployProject --project-name=${settings.project}";
+        var command = "bash ${globals.migration_dir}/migrator.sh deployProject --remote-dir=${settings.project}";
         resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
         if (resp.result != 0) return resp;
         return JSON.parse(resp.responses[0].out).result;
