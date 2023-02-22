@@ -137,8 +137,8 @@ updateVariable(){
 
 createRemoteDbBackup(){
   local project=$1;
-  local db_backup="${REMOTE_DIR}/${project}/${DB_BACKUP}"
-  local command="${SSH} \" wp db export $db_backup --path=${REMOTE_DIR}/${project}\""
+  local db_backup="${REMOTE_DIR}/${DB_BACKUP}"
+  local command="${SSH} \"${REMOTE_WP_CLI} db export $db_backup --path=${REMOTE_DIR}/\""
   local message="Creating database backup by WP_CLI on remote host"
   execSshAction "$command" "$message"
 }
@@ -148,7 +148,7 @@ downloadProject(){
   rm -rf ${BACKUP_DIR}; mkdir -p ${BACKUP_DIR};
   rsync -e "sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no -p${SSH_PORT} -l ${SSH_USER}" \
     -Sa \
-    ${SSH_HOST}:${REMOTE_DIR}/${project}/ /${BACKUP_DIR}/
+    ${SSH_HOST}:${REMOTE_DIR}/ /${BACKUP_DIR}/
 }
 
 syncContent(){
@@ -217,8 +217,8 @@ restoreWPconfig(){
 deployProject(){
   for i in "$@"; do
     case $i in
-      --project-name=*)
-      PROJECT_NAME=${i#*=}
+      --remote-dir=*)
+      REMOTE_DIR=${i#*=}
       shift
       shift
       ;;
@@ -236,8 +236,9 @@ deployProject(){
   ### Delete custom define wp-jelastic.php
   sed -i '/wp-jelastic.php/d' ${WP_CONFIG}
 
-  createRemoteDbBackup $PROJECT_NAME
-  execAction "downloadProject $PROJECT_NAME" "Downloading $PROJECT_NAME project from remote host to ${BACKUP_DIR}"
+  
+  createRemoteDbBackup $REMOTE_DIR
+  execAction "downloadProject $REMOTE_DIR" "Downloading $REMOTE_DIR from remote host to ${BACKUP_DIR}"
   addVariable DB_USER $(getWPconfigVariable DB_USER)
   addVariable DB_PASSWORD $(getWPconfigVariable DB_PASSWORD)
   addVariable DB_NAME $(getWPconfigVariable DB_NAME)
@@ -311,7 +312,7 @@ getSSHprojects(){
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
   checkSSHconnection
   validateWPtoolkit
-  REMOTE_WP_CLI=$(getRemoteWP_CLI)
+  updateVariable REMOTE_WP_CLI $(getRemoteWP_CLI)
   getRemoteProjectList
   getProjectList
 }
