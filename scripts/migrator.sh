@@ -13,6 +13,7 @@ WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
 WP_PROJECTS="projects.json"
 WP_CLI="${BASE_DIR}/wp"
+REMOTE_WP_CLI_DIR="jelastic/wp-cli"
 
 trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 0" TERM
 export TOP_PID=$$
@@ -32,6 +33,26 @@ installWP_CLI(){
   echo "apache_modules:" > ${BASE_DIR}/wp-cli.yml;
   echo "  - mod_rewrite" >> ${BASE_DIR}/wp-cli.yml;
   ${WP_CLI} --info 2>&1;
+}
+
+getRemoteWP_CLI(){
+  local remote_wp_cli_dir="jelastic/wp-cli"
+  local get_remote_wp_cli="${SSH} \"command -v wp > /dev/null && {  echo 'true'; } || { echo 'false'; }\""
+  local result=$(execSshReturn "${get_remote_wp_cli}" "Validate default WP-CLI on remote host")
+  if [[ "x${result}" == "xtrue" ]]; then
+    log "Using default WP-CLI installation";
+    local wp_cli="wp"
+  else
+    log "Default WP-CLI installation does not found. Installing custom WP-CLI to ${remote_wp_cli_dir} directory";
+    local create_remote_dir="${SSH} \"[[ ! -d ${remote_wp_cli_dir} ]] && mkdir -p ${remote_wp_cli_dir} \""
+    local install_wp_cli="${SSH} \"curl -s -o ${remote_wp_cli_dir}/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar  && chmod +x ${remote_wp_cli_dir}/wp; \""
+    execSshAction "${create_remote_dir}" "Creating directory ${remote_wp_cli_dir} for WP-CLI on remote host"
+    execSshAction "${install_wp_cli}" "Installing custom WP-CLI to ${remote_wp_cli_dir} directory"
+    local wp_cli="${remote_wp_cli_dir}/wp"
+  fi
+  local validate_remote_wp_cli="${SSH} \"${wp_cli} --info 2>&1;\""
+  execSshAction "${validate_remote_wp_cli}" "Validating WP-CLI om remote host"
+  echo ${wp_cli}
 }
 
 execResponse(){
@@ -96,8 +117,10 @@ getRemoteProjectList(){
   source ${WP_ENV}
   local generateProjectlist="${SSH} \" wp-toolkit --list -format json > ${WP_PROJECTS} \""
   local getProjectlist="sshpass -p ${SSH_PASSWORD} scp -P ${SSH_PORT} ${SSH_USER}@${SSH_HOST}:${WP_PROJECTS} ${BASE_DIR}/${WP_PROJECTS}"
+  local validateProjectlist="json_verify < ${BASE_DIR}/${WP_PROJECTS}"
   execSshAction "${generateProjectlist}" "Generate projects list on remote host by wp-toolkit"
   execAction "${getProjectlist}" "Get projects list to local host"
+#  execAction "${validateProjectlist}" "Validate JSON format forprojects list ${BASE_DIR}/${WP_PROJECTS}"
 }
 
 addVariable(){
@@ -286,9 +309,9 @@ getSSHprojects(){
   updateVariable SSH_HOST ${SSH_HOST}
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
-
   checkSSHconnection
   validateWPtoolkit
+  REMOTE_WP_CLI=$(getRemoteWP_CLI)
   getRemoteProjectList
   getProjectList
 }
