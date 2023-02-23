@@ -13,7 +13,8 @@ WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
 WP_PROJECTS="projects.json"
 WP_CLI="${BASE_DIR}/wp"
-REMOTE_WP_CLI_DIR="jelastic/wp-cli"
+WPT="wp-toolkit"
+#REMOTE_WP_CLI_DIR="jelastic/wp-cli"
 
 trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 0" TERM
 export TOP_PID=$$
@@ -135,11 +136,19 @@ updateVariable(){
   grep -q $var $WP_ENV && { sed -i "s/${var}.*/${var}=${value}/" $WP_ENV; } || { echo "${var}=${value}" >> $WP_ENV; }
 }
 
-createRemoteDbBackup(){
+createRemoteDbBackupWPCLI(){
   local project=$1;
   local db_backup="${REMOTE_DIR}/${DB_BACKUP}"
   local command="${SSH} \"${REMOTE_WP_CLI} db export $db_backup --path=${REMOTE_DIR}/\""
-  local message="Creating database backup by WP_CLI on remote host"
+  local message="Creating database backup by WP CLI on remote host"
+  execSshAction "$command" "$message"
+}
+
+createRemoteDbBackupWPT(){
+  local project=$1;
+  local db_backup="${REMOTE_DIR}/${DB_BACKUP}"
+  local command="${SSH} \"${WPT} --wp-cli -instance-id ${project}  -- db export ${DB_BACKUP}\""
+  local message="Creating database backup by WP TOOLKIT on remote host"
   execSshAction "$command" "$message"
 }
 
@@ -217,8 +226,8 @@ restoreWPconfig(){
 deployProject(){
   for i in "$@"; do
     case $i in
-      --remote-dir=*)
-      REMOTE_DIR=${i#*=}
+      --instance-id=*)
+      INSTANCE_ID=${i#*=}
       shift
       shift
       ;;
@@ -236,26 +245,25 @@ deployProject(){
   ### Delete custom define wp-jelastic.php
   sed -i '/wp-jelastic.php/d' ${WP_CONFIG}
 
-  
-  createRemoteDbBackup $REMOTE_DIR
-  execAction "downloadProject $REMOTE_DIR" "Downloading $REMOTE_DIR from remote host to ${BACKUP_DIR}"
-  addVariable DB_USER $(getWPconfigVariable DB_USER)
-  addVariable DB_PASSWORD $(getWPconfigVariable DB_PASSWORD)
-  addVariable DB_NAME $(getWPconfigVariable DB_NAME)
-  addVariable DB_HOST $(getWPconfigVariable DB_HOST)
-  addVariable SITE_URL $(getSiteUrl)
-  execAction "syncContent ${BACKUP_DIR} ${WEBROOT_DIR}" "Sync content from ${BACKUP_DIR} to ${WEBROOT_DIR}"
-  execAction "syncDB ${BACKUP_DIR}/${DB_BACKUP}" "Sync database from ${BACKUP_DIR}/${DB_BACKUP} "
-  source ${WP_ENV}
-  setWPconfigVariable DB_USER ${DB_USER}
-  setWPconfigVariable DB_PASSWORD ${DB_PASSWORD}
-  setWPconfigVariable DB_HOST ${DB_HOST}
-  setWPconfigVariable DB_NAME ${DB_NAME}
-  setWPconfigVariable WP_DEBUG "false"
-  updateSiteUrl $SITE_URL
-  updateHomeUrl $SITE_URL
-  flushCache
-  echo "{\"result\": 0}"
+  createRemoteDbBackupWPT $INSTANCE_ID
+ # execAction "downloadProject $REMOTE_DIR" "Downloading $REMOTE_DIR from remote host to ${BACKUP_DIR}"
+ # addVariable DB_USER $(getWPconfigVariable DB_USER)
+ # addVariable DB_PASSWORD $(getWPconfigVariable DB_PASSWORD)
+ # addVariable DB_NAME $(getWPconfigVariable DB_NAME)
+ # addVariable DB_HOST $(getWPconfigVariable DB_HOST)
+ # addVariable SITE_URL $(getSiteUrl)
+ # execAction "syncContent ${BACKUP_DIR} ${WEBROOT_DIR}" "Sync content from ${BACKUP_DIR} to ${WEBROOT_DIR}"
+ # execAction "syncDB ${BACKUP_DIR}/${DB_BACKUP}" "Sync database from ${BACKUP_DIR}/${DB_BACKUP} "
+ # source ${WP_ENV}
+ # setWPconfigVariable DB_USER ${DB_USER}
+ # setWPconfigVariable DB_PASSWORD ${DB_PASSWORD}
+ # setWPconfigVariable DB_HOST ${DB_HOST}
+ # setWPconfigVariable DB_NAME ${DB_NAME}
+ # setWPconfigVariable WP_DEBUG "false"
+ # updateSiteUrl $SITE_URL
+ # updateHomeUrl $SITE_URL
+ # flushCache
+ # echo "{\"result\": 0}"
 }
 
 getProjectList(){
@@ -312,7 +320,7 @@ getSSHprojects(){
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
   checkSSHconnection
   validateWPtoolkit
-  updateVariable REMOTE_WP_CLI $(getRemoteWP_CLI)
+#  updateVariable REMOTE_WP_CLI $(getRemoteWP_CLI)
   getRemoteProjectList
   getProjectList
 }
