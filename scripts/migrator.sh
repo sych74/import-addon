@@ -136,6 +136,13 @@ updateVariable(){
   grep -q $var $WP_ENV && { sed -i "s/${var}.*/${var}=${value}/" $WP_ENV; } || { echo "${var}=${value}" >> $WP_ENV; }
 }
 
+getArgFromJSON(){
+  local key=$1
+  local arg=$2
+  local result=$(jq ".[] | select(.id == ${key}) | .${arg}" ${BASE_DIR}/${WP_PROJECTS} | tr -d '"')
+  echo $result
+}
+
 createRemoteDbBackupWPCLI(){
   local project=$1;
   local db_backup="${REMOTE_DIR}/${DB_BACKUP}"
@@ -146,7 +153,6 @@ createRemoteDbBackupWPCLI(){
 
 createRemoteDbBackupWPT(){
   local project=$1;
-  local db_backup="${REMOTE_DIR}/${DB_BACKUP}"
   local command="${SSH} \"${WPT} --wp-cli -instance-id ${project}  -- db export ${DB_BACKUP}\""
   local message="Creating database backup by WP TOOLKIT on remote host"
   execSshAction "$command" "$message"
@@ -246,24 +252,25 @@ deployProject(){
   sed -i '/wp-jelastic.php/d' ${WP_CONFIG}
 
   createRemoteDbBackupWPT $INSTANCE_ID
- # execAction "downloadProject $REMOTE_DIR" "Downloading $REMOTE_DIR from remote host to ${BACKUP_DIR}"
- # addVariable DB_USER $(getWPconfigVariable DB_USER)
- # addVariable DB_PASSWORD $(getWPconfigVariable DB_PASSWORD)
- # addVariable DB_NAME $(getWPconfigVariable DB_NAME)
- # addVariable DB_HOST $(getWPconfigVariable DB_HOST)
- # addVariable SITE_URL $(getSiteUrl)
- # execAction "syncContent ${BACKUP_DIR} ${WEBROOT_DIR}" "Sync content from ${BACKUP_DIR} to ${WEBROOT_DIR}"
- # execAction "syncDB ${BACKUP_DIR}/${DB_BACKUP}" "Sync database from ${BACKUP_DIR}/${DB_BACKUP} "
- # source ${WP_ENV}
- # setWPconfigVariable DB_USER ${DB_USER}
- # setWPconfigVariable DB_PASSWORD ${DB_PASSWORD}
- # setWPconfigVariable DB_HOST ${DB_HOST}
- # setWPconfigVariable DB_NAME ${DB_NAME}
- # setWPconfigVariable WP_DEBUG "false"
- # updateSiteUrl $SITE_URL
- # updateHomeUrl $SITE_URL
- # flushCache
- # echo "{\"result\": 0}"
+  REMOTE_DIR=$(getArgFromJSON $INSTANCE_ID "fullPath")
+  execAction "downloadProject $REMOTE_DIR" "Downloading $REMOTE_DIR from remote host to ${BACKUP_DIR}"
+  addVariable DB_USER $(getWPconfigVariable DB_USER)
+  addVariable DB_PASSWORD $(getWPconfigVariable DB_PASSWORD)
+  addVariable DB_NAME $(getWPconfigVariable DB_NAME)
+  addVariable DB_HOST $(getWPconfigVariable DB_HOST)
+  addVariable SITE_URL $(getSiteUrl)
+  execAction "syncContent ${BACKUP_DIR} ${WEBROOT_DIR}" "Sync content from ${BACKUP_DIR} to ${WEBROOT_DIR}"
+  execAction "syncDB ${BACKUP_DIR}/${DB_BACKUP}" "Sync database from ${BACKUP_DIR}/${DB_BACKUP} "
+  source ${WP_ENV}
+  setWPconfigVariable DB_USER ${DB_USER}
+  setWPconfigVariable DB_PASSWORD ${DB_PASSWORD}
+  setWPconfigVariable DB_HOST ${DB_HOST}
+  setWPconfigVariable DB_NAME ${DB_NAME}
+  setWPconfigVariable WP_DEBUG "false"
+  updateSiteUrl $SITE_URL
+  updateHomeUrl $SITE_URL
+  flushCache
+  echo "{\"result\": 0}"
 }
 
 getProjectList(){
