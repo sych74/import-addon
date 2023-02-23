@@ -278,9 +278,25 @@ deployProject(){
 }
 
 getProjectList(){
+  for i in "$@"; do
+    case $i in
+      --format=*)
+      FORMAT=${i#*=}
+      shift
+      shift
+      ;;
+      *)
+        ;;
+    esac
+  done
+
   local project_list=$(cat ${BASE_DIR}/${WP_PROJECTS});
-  local output_json="{\"result\": 0, \"projects\": ${project_list}}"
-  echo $output_json
+  if [[ "x${FORMAT}" == "xjson" ]]; then
+    output="{\"result\": 0, \"projects\": ${project_list}}"
+  else
+    output=${project_list}
+  fi
+  echo $output
 }
 
 checkSSHconnection(){
@@ -346,12 +362,8 @@ case ${1} in
         ;;
 
     getProjectList)
-      getProjectList
+      getProjectList "$@"
       ;;
-
-    getGITproject)
-        getGITproject "$@"
-        ;;
 
     deployProject)
       deployProject "$@"
