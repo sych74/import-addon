@@ -13,8 +13,6 @@ WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
 WP_PROJECTS="projects.json"
 WP_CLI="${BASE_DIR}/wp"
-WPT="wp-toolkit"
-#REMOTE_WP_CLI_DIR="jelastic/wp-cli"
 
 trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 0" TERM
 export TOP_PID=$$
@@ -102,12 +100,16 @@ execSshReturn(){
   }
 }
 
-validateWPtoolkit(){
-  local command="${SSH} \"command -v wp-toolkit\""
+getWPtoolkitVersion(){
+  local command1="${SSH} \"command -v wp-toolkit\""
+  local command2="${SSH} \"command -v plesk\""
   local message="Checking WP Toolkit on remote host"
-  action_to_base64=$(echo $command|base64 -w 0)
-  stdout=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { log "${message}...done"; } || {
-    log "${message}...failed\n${stdout}\n";
+  action_to_base64=$(echo $command1|base64 -w 0)
+  stdout=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { log "${message}...done"; wp_toolkit="wp-toolkit"; }
+  action_to_base64=$(echo $command2|base64 -w 0)
+  stdout=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { log "${message}...done"; wp_toolkit="plesk ext wp-toolkit"; }
+  [[ "$wp_toolkit" == *wp-toolkit* ]] && { echo $wp_toolkit; } || {
+    log "${message}...failed\n";
     local output_json="{\"result\": ${WP_TOOLKIT_ERROR_CODE}, \"out\": \"${message}...failed\"}"
     echo $output_json
     exit 0
@@ -116,7 +118,7 @@ validateWPtoolkit(){
 
 getRemoteProjectList(){
   source ${WP_ENV}
-  local generateProjectlist="${SSH} \" wp-toolkit --list -format json > ${WP_PROJECTS} \""
+  local generateProjectlist="${SSH} \"${WPT} --list -format json > ${WP_PROJECTS} \""
   local getProjectlist="sshpass -p ${SSH_PASSWORD} scp -P ${SSH_PORT} ${SSH_USER}@${SSH_HOST}:${WP_PROJECTS} ${BASE_DIR}/${WP_PROJECTS}"
   local validateProjectlist="json_verify < ${BASE_DIR}/${WP_PROJECTS}"
   execSshAction "${generateProjectlist}" "Generate projects list on remote host by wp-toolkit"
@@ -245,6 +247,8 @@ deployProject(){
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
 
+  WPT=$(getWPtoolkitVersion)
+
   ### Restore original wp-config.php
   [ -f ${BASE_DIR}/wp-config.php ] && cat ${BASE_DIR}/wp-config.php > ${WP_CONFIG}
 
@@ -326,8 +330,7 @@ getSSHprojects(){
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
   checkSSHconnection
-  validateWPtoolkit
-#  updateVariable REMOTE_WP_CLI $(getRemoteWP_CLI)
+  WPT=$(getWPtoolkitVersion)
   getRemoteProjectList
   getProjectList
 }
