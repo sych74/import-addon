@@ -1,6 +1,6 @@
 import org.json.JSONObject;
-var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'cat /home/jelastic/migrator/wplist.json' }]), true);
-var projectList = JSON.parse(resp.responses[0].out);
+var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList --format=json' }]), true);
+var projectList = JSON.parse(resp.responses[0].out).projects;
 var projectListPrepared = prepareProjects(projectList);
       
 function prepareProjects(values) {
