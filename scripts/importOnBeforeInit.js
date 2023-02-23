@@ -9,7 +9,7 @@ function prepareProjects(values) {
     for (var i = 0, n = values.length; i < n; i++) {
         aResultValues.push({
             caption: values[i].siteUrl,
-            value: values[i].fullPath
+            value: values[i].id
         });
     }
     return aResultValues;
