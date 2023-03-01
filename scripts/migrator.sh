@@ -378,6 +378,11 @@ getRemoteProjects(){
       shift
       shift
       ;;
+      --format=*)
+      FORMAT=${i#*=}
+      shift
+      shift
+      ;;
       *)
         ;;
     esac
@@ -394,11 +399,14 @@ getRemoteProjects(){
 
   if [[ "$WPT" == *wp-toolkit* ]]; then
     getRemoteProjectListWPT
+    updateVariable WPT ${WPT}
   else
     REMOTE_WP_CLI=$(installRemoteWP_CLI)
+    updateVariable REMOTE_WP_CLI ${REMOTE_WP_CLI}
     getRemoteProjectListWP_CLI
   fi
-  getProjectList
+  [[ "x${FORMAT}" == "xjson" ]] && { getProjectList --format=json; } || { getProjectList; }
+
 }
 
 ### Backuping wp-config.php to /tmp/migrator/ dir
