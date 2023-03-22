@@ -5,7 +5,7 @@ id: wp-migrator
 targetEditions: any
 logo: /images/migrate-logo.svg
 description: Migrate your web site from remote WordPress installation
-baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
+baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-296
 
 targetNodes:
   nodeType:
@@ -45,22 +45,22 @@ settings:
     onBeforeInit: scripts/importOnBeforeInit.js?_r=${fn.random}
       
 buttons:
-- caption: Get projects
-  action: getSSHprojects
+- caption: Get remote projects
+  action: getRemoteProjects
   settings: ssh
   title: SSH connection detail
-  loadingText: Getting WordPress projects...
+  loadingText: Getting remote WordPress projects...
   submitButtonText: Get projects
   successText: List of WordPress projects received successfully.
   
-- caption: Migrate
+- caption: Import project
   action: deployProject
-  loadingText: Migrating...
+  loadingText: Importing...
   settings: deploy
-  successText: The Wordpress project have been successfully migrated.
-  title: Migrate Project
-  submitButtonText: Migrate project
-  confirmText: You are going to migrate project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
+  successText: The Wordpress project have been successfully imprted.
+  title: Import Project
+  submitButtonText: Import project
+  confirmText: You are going to import project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
 globals:
   migration_dir: "$HOME/migrator"
@@ -69,6 +69,10 @@ responses:
   701:
     type: warning
     message: SSH connection is failed. Please check SSH connection details!
+    
+  702:
+    type: warning
+    message: WP Toolkit utility isnt activated for this account. Please activate!  
     
   99:
     type: warning
@@ -96,7 +100,7 @@ actions:
       action = (projects.length > 1 || '${settings.isAllDeploy}' == 'true') ? "deployAllProjects" : "deployOneProject";
       return { result: 0, onAfterReturn: action };
 
-  getSSHprojects:
+  getRemoteProjects:
     - installDependencies:
     - setGlobals:
         ssh_user: "${settings.ssh_user}"
@@ -116,7 +120,7 @@ actions:
 
   deployOneProject:
     - script: |
-        var command = "bash ${globals.migration_dir}/migrator.sh deployProject --project-name=${settings.project}";
+        var command = "bash ${globals.migration_dir}/migrator.sh deployProject --instance-id=${settings.project}";
         resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
         if (resp.result != 0) return resp;
         return JSON.parse(resp.responses[0].out).result;
@@ -126,7 +130,7 @@ actions:
     - script: |
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [], projectList = [];
         if ('${settings.isAllDeploy}' == 'true') {
-          var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList' }]), true);
+          var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList --format=json' }]), true);
           if (resp.result != 0) return resp;
           try {
             projectList = JSON.parse(resp.responses[0].out).projects || [];

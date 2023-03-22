@@ -3,23 +3,22 @@
 SUCCESS_CODE=0
 FAIL_CODE=99
 AUTHORIZATION_ERROR_CODE=701
-
-REMOTE_DIR="public_html"
-BASE_DIR="$HOME/migrator"
-RUN_LOG="/var/log/migrator.log"
+WP_TOOLKIT_ERROR_CODE=702
+BASE_DIR="/home/jelastic/migrator"
+RUN_LOG="${BASE_DIR}/migrator.log"
 BACKUP_DIR="${BASE_DIR}/backup"
 DB_BACKUP="db_backup.sql"
-PROJECT_DIR="${BASE_DIR}/project"
 WEBROOT_DIR="/var/www/webroot/ROOT"
 WP_CONFIG="${WEBROOT_DIR}/wp-config.php"
 WP_ENV="${BASE_DIR}/.wpenv"
+WP_PROJECTS_LIST_JSON="projects.json"
+WP_PROJECTS_LIST="projects.list"
 WP_CLI="${BASE_DIR}/wp"
 
 trap "execResponse '${FAIL_CODE}' 'Please check the ${RUN_LOG} log file for details.'; exit 0" TERM
 export TOP_PID=$$
 
 [[ -d ${BACKUP_DIR} ]] && mkdir -p ${BACKUP_DIR}
-[[ -d ${PROJECT_DIR} ]] && mkdir -p ${PROJECT_DIR}
 [[ ! -f ${WP_ENV} ]] && touch ${WP_ENV}
 
 log(){
@@ -34,6 +33,23 @@ installWP_CLI(){
   echo "apache_modules:" > ${BASE_DIR}/wp-cli.yml;
   echo "  - mod_rewrite" >> ${BASE_DIR}/wp-cli.yml;
   ${WP_CLI} --info 2>&1;
+}
+
+installRemoteWP_CLI(){
+  local remote_wp_cli_dir="jelastic/wp-cli"
+  local get_remote_wp_cli="${SSH} \"command -v wp > /dev/null && {  echo 'true'; } || { echo 'false'; }\""
+  local result=$(execSshReturn "${get_remote_wp_cli}" "Validate default WP-CLI on remote host")
+  log "Default WP-CLI installation does not found. Installing custom WP-CLI to ${remote_wp_cli_dir} directory";
+  local create_remote_dir="${SSH} \"[[ ! -d ${remote_wp_cli_dir} ]] && { mkdir -p ${remote_wp_cli_dir};} || { echo 'false';} \""
+  local install_wp_cli="${SSH} \"curl -s -o ${remote_wp_cli_dir}/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar  && chmod +x ${remote_wp_cli_dir}/wp; \""
+  local install_wp_cli_find="${SSH} \"${remote_wp_cli_dir}/wp package install wp-cli/find-command \""
+  execSshAction "${create_remote_dir}" "Creating directory ${remote_wp_cli_dir} for WP-CLI on remote host"
+  execSshAction "${install_wp_cli}" "Installing custom WP-CLI to ${remote_wp_cli_dir} directory"
+  execSshAction "${install_wp_cli_find}" "Installing wp-cli/find-command extension for WP-CLI"
+  local wp_cli="${remote_wp_cli_dir}/wp"
+  local validate_remote_wp_cli="${SSH} \"${wp_cli} --info 2>&1;\""
+  execSshAction "${validate_remote_wp_cli}" "Validating WP-CLI om remote host"
+  echo ${wp_cli}
 }
 
 execResponse(){
@@ -82,17 +98,60 @@ execSshReturn(){
   }
 }
 
-validatePublicHtmlDir(){
-  local command="${SSH} \"[[ -d ${REMOTE_DIR} ]] && {  echo 'true'; } || { echo 'false'; } \""
-  local message="Checking ${REMOTE_DIR} directory"
-  result=$(execSshReturn "$command" "$message")
+getWPtoolkitVersion(){
+  local command1="${SSH} \"wp-toolkit --list >/dev/null\""
+  local command2="${SSH} \"plesk ext wp-toolkit --list >/dev/null\""
+  local message="Checking WP Toolkit on remote host"
+  action_to_base64=$(echo $command1|base64 -w 0)
+  stdout=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { log "${message}...done"; wp_toolkit="wp-toolkit"; }
+  action_to_base64=$(echo $command2|base64 -w 0)
+  stdout=$( { sh -c "$(echo ${action_to_base64}|base64 -d)"; } 2>&1 ) && { log "${message}...done"; wp_toolkit="plesk ext wp-toolkit"; }
+  echo $wp_toolkit;
 }
 
-getRemoteProjectList(){
-  local command="${SSH} \"find public_html -name 'wp-config.php' | grep -o -P '(?<=public_html/).*(?=/wp-config.php)' | sort -u \""
-  local message="Get wordpress directories"
-  local remote_projects=$(execSshReturn "$command" "$message")
-  echo $remote_projects
+getRemoteProjectListWPT(){
+  source ${WP_ENV}
+#  local generateProjectlist="${SSH} \"${WPT} --list > ${WP_PROJECTS_LIST} \""
+  local generateProjectlistJson="${SSH} \"${WPT} --list -format json > ${WP_PROJECTS_LIST_JSON} \""
+#  local getProjectlist="sshpass -p ${SSH_PASSWORD} scp -P ${SSH_PORT} ${SSH_USER}@${SSH_HOST}:${WP_PROJECTS_LIST} ${BASE_DIR}/${WP_PROJECTS_LIST}"
+  local getProjectlistJson="sshpass -p ${SSH_PASSWORD} scp -P ${SSH_PORT} ${SSH_USER}@${SSH_HOST}:${WP_PROJECTS_LIST_JSON} ${BASE_DIR}/${WP_PROJECTS_LIST_JSON}"
+  local validateProjectlist="json_verify < ${BASE_DIR}/${WP_PROJECTS_LIST_JSON}"
+#  execSshAction "${generateProjectlist}" "Generate projects list on remote host by wp-toolkit"
+  execSshAction "${generateProjectlistJson}" "Generate projects list in JSON format on remote host by wp-toolkit"
+#  execAction "${getProjectlist}" "Download projects list"
+  execAction "${getProjectlistJson}" "Download projects list in JSON format"
+#  execAction "${validateProjectlist}" "Validate JSON format forprojects list ${BASE_DIR}/${WP_PROJECTS_LIST_JSON}"
+}
+
+
+getRemoteProjectListWP_CLI(){
+  _getRemoteSiteUrl() {
+    local remote_path=$1
+    local getRemoteSiteUrl="${SSH} \"${REMOTE_WP_CLI} option get siteurl --path=${remote_path} \""
+    local remote_siteurl=$(execSshReturn "${getRemoteSiteUrl}" "Get remote WordPress siteurl for ${remote_path} installation")
+    echo $remote_siteurl
+  }
+  local id=0
+  local projects=$(jq -n '[]')
+  local getRemoteWPinstallations="${SSH} \"${REMOTE_WP_CLI} find . --format=json \""
+  local wp_installations=$(execSshReturn "${getRemoteWPinstallations}" "Get remote WordPress installations via WP-CLI find")
+  for row in $(echo "${wp_installations}" | jq -r '.[] | @base64'); do
+    _jq() {
+     echo "${row}" | base64 --decode | jq -r "${1}"
+    }
+    fullPath=$(_jq '.version_path' | sed 's/wp-includes\/version.php//')
+    version=$(_jq '.version')
+    siteUrl=$(_getRemoteSiteUrl $fullPath)
+    id=$((id+1))
+
+    projects=$(echo $projects | jq \
+      --argjson id "$id" \
+      --arg siteUrl "$siteUrl" \
+      --arg version "$version" \
+      --arg fullPath "$fullPath" \
+      '. += [{"id": $id, "siteUrl": $siteUrl, "version": $version, "fullPath": $fullPath}]')
+  done
+  echo $projects > ${BASE_DIR}/${WP_PROJECTS_LIST_JSON}
 }
 
 addVariable(){
@@ -107,11 +166,25 @@ updateVariable(){
   grep -q $var $WP_ENV && { sed -i "s/${var}.*/${var}=${value}/" $WP_ENV; } || { echo "${var}=${value}" >> $WP_ENV; }
 }
 
-createRemoteDbBackup(){
+getArgFromJSON(){
+  local key=$1
+  local arg=$2
+  local result=$(jq ".[] | select(.id == ${key}) | .${arg}" ${BASE_DIR}/${WP_PROJECTS_LIST_JSON} | tr -d '"')
+  echo $result
+}
+
+createRemoteDbBackupWPCLI(){
   local project=$1;
-  local db_backup="${REMOTE_DIR}/${project}/${DB_BACKUP}"
-  local command="${SSH} \" wp db export $db_backup --path=${REMOTE_DIR}/${project}\""
-  local message="Creating database backup by WP_CLI on remote host"
+  local db_backup="${REMOTE_DIR}/${DB_BACKUP}"
+  local command="${SSH} \"${REMOTE_WP_CLI} db export $db_backup --path=${REMOTE_DIR}/\""
+  local message="Creating database backup by WP CLI on remote host"
+  execSshAction "$command" "$message"
+}
+
+createRemoteDbBackupWPT(){
+  local project=$1;
+  local command="${SSH} \"${WPT} --wp-cli -instance-id ${project}  -- db export ${DB_BACKUP}\""
+  local message="Creating database backup by WP TOOLKIT on remote host"
   execSshAction "$command" "$message"
 }
 
@@ -120,7 +193,7 @@ downloadProject(){
   rm -rf ${BACKUP_DIR}; mkdir -p ${BACKUP_DIR};
   rsync -e "sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no -p${SSH_PORT} -l ${SSH_USER}" \
     -Sa \
-    ${SSH_HOST}:${REMOTE_DIR}/${project}/ /${BACKUP_DIR}/
+    ${SSH_HOST}:${REMOTE_DIR}/ /${BACKUP_DIR}/
 }
 
 syncContent(){
@@ -186,11 +259,11 @@ restoreWPconfig(){
   execAction "${command}" "${message}"
 }
 
-deployProject(){
+importProject(){
   for i in "$@"; do
     case $i in
-      --project-name=*)
-      PROJECT_NAME=${i#*=}
+      --instance-id=*)
+      INSTANCE_ID=${i#*=}
       shift
       shift
       ;;
@@ -202,14 +275,17 @@ deployProject(){
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
 
+  WPT=$(getWPtoolkitVersion)
+
   ### Restore original wp-config.php
   [ -f ${BASE_DIR}/wp-config.php ] && cat ${BASE_DIR}/wp-config.php > ${WP_CONFIG}
 
   ### Delete custom define wp-jelastic.php
   sed -i '/wp-jelastic.php/d' ${WP_CONFIG}
 
-  createRemoteDbBackup $PROJECT_NAME
-  execAction "downloadProject $PROJECT_NAME" "Downloading $PROJECT_NAME project from remote host to ${BACKUP_DIR}"
+  createRemoteDbBackupWPT $INSTANCE_ID
+  REMOTE_DIR=$(getArgFromJSON $INSTANCE_ID "fullPath")
+  execAction "downloadProject $REMOTE_DIR" "Downloading $REMOTE_DIR from remote host to ${BACKUP_DIR}"
   addVariable DB_USER $(getWPconfigVariable DB_USER)
   addVariable DB_PASSWORD $(getWPconfigVariable DB_PASSWORD)
   addVariable DB_NAME $(getWPconfigVariable DB_NAME)
@@ -230,9 +306,41 @@ deployProject(){
 }
 
 getProjectList(){
-  local project_list=$(ls -Qm ${PROJECT_DIR});
-  local output_json="{\"result\": 0, \"projects\": [${project_list}]}"
-  echo $output_json
+  for i in "$@"; do
+    case $i in
+      --format=*)
+      FORMAT=${i#*=}
+      shift
+      shift
+      ;;
+      *)
+        ;;
+    esac
+  done
+
+  local project_list=$(cat ${BASE_DIR}/${WP_PROJECTS_LIST_JSON});
+  if [[ "x${FORMAT}" == "xjson" ]]; then
+    output="{\"result\": 0, \"projects\": ${project_list}}"
+    echo $output
+  else
+    seperator=---------------------------------------------------------------------------------------------------
+    rows="%-5s| %-50s| %-8s| %s\n"
+    TableWidth=100
+
+    printf "%-5s| %-50s| %-8s| %s\n" ID siteUrl version fullPath
+    printf "%.${TableWidth}s\n" "$seperator"
+
+    for row in $(echo "${project_list}" | jq -r '.[] | @base64'); do
+      _jq() {
+        echo "${row}" | base64 --decode | jq -r "${1}"
+      }
+      id=$(_jq '.id')
+      fullPath=$(_jq '.fullPath')
+      version=$(_jq '.version')
+      siteUrl=$(_jq '.siteUrl')
+      printf "$rows" "$id" "$siteUrl" "$version" "$fullPath"
+    done
+  fi
 }
 
 checkSSHconnection(){
@@ -247,7 +355,7 @@ checkSSHconnection(){
   }
 }
 
-getSSHprojects(){
+getRemoteProjects(){
   for i in "$@"; do
     case $i in
       --ssh-user=*)
@@ -270,6 +378,11 @@ getSSHprojects(){
       shift
       shift
       ;;
+      --format=*)
+      FORMAT=${i#*=}
+      shift
+      shift
+      ;;
       *)
         ;;
     esac
@@ -281,14 +394,19 @@ getSSHprojects(){
   updateVariable SSH_HOST ${SSH_HOST}
   source ${WP_ENV}
   SSH="timeout 300 sshpass -p ${SSH_PASSWORD} ssh -T -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} -p${SSH_PORT}"
-
   checkSSHconnection
-  validatePublicHtmlDir
-  wpProjects=( $(getRemoteProjectList) )
+  WPT=$(getWPtoolkitVersion)
 
-  [[ -d ${PROJECT_DIR} ]] && rm -rf ${PROJECT_DIR} || mkdir -p ${PROJECT_DIR}
-  for projectName in ${wpProjects[@]}; do mkdir -p ${PROJECT_DIR}/${projectName}; done
-  getProjectList
+  if [[ "$WPT" == *wp-toolkit* ]]; then
+    getRemoteProjectListWPT
+    updateVariable WPT ${WPT}
+  else
+    REMOTE_WP_CLI=$(installRemoteWP_CLI)
+    updateVariable REMOTE_WP_CLI ${REMOTE_WP_CLI}
+    getRemoteProjectListWP_CLI
+  fi
+  [[ "x${FORMAT}" == "xjson" ]] && { getProjectList --format=json; } || { getProjectList; }
+
 }
 
 ### Backuping wp-config.php to /tmp/migrator/ dir
@@ -297,19 +415,15 @@ getSSHprojects(){
 execAction "installWP_CLI" 'Install WP-CLI'
 
 case ${1} in
-    getSSHprojects)
-        getSSHprojects "$@"
+    getRemoteProjects)
+        getRemoteProjects "$@"
         ;;
 
     getProjectList)
-      getProjectList
+      getProjectList "$@"
       ;;
 
-    getGITproject)
-        getGITproject "$@"
-        ;;
-
-    deployProject)
-      deployProject "$@"
+    importProject)
+      importProject "$@"
       ;;
 esac

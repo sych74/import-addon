@@ -1,6 +1,6 @@
 import org.json.JSONObject;
-var projects = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList' }]), true).responses[0].out;
-var projectList = toNative(new JSONObject(String(projects))).projects;
+var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList --format=json' }]), true);
+var projectList = JSON.parse(resp.responses[0].out).projects;
 var projectListPrepared = prepareProjects(projectList);
       
 function prepareProjects(values) {
@@ -8,8 +8,8 @@ function prepareProjects(values) {
     values = values || [];
     for (var i = 0, n = values.length; i < n; i++) {
         aResultValues.push({
-            caption: values[i],
-            value: values[i]
+            caption: values[i].siteUrl,
+            value: values[i].id
         });
     }
     return aResultValues;
@@ -24,16 +24,5 @@ settings.fields.push({
   "multiSelect": true,
   "values": projectListPrepared
 })
-
-if (projectListPrepared.length > 1) {
-  settings.fields.push({
-    "caption": "Migrate all projects to separate WordPress environments.",
-    "type": "checkbox",
-    "name": "isAllDeploy",
-    "value": false,
-    "disabled": false,
-    "tooltip": "Migrate all projects to separate WordPress environments."
-  })
-}
 
 return settings;
