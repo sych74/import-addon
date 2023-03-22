@@ -113,7 +113,7 @@ actions:
           globals: "${globals.toJSON()}"
 
     - script: |
-        var command = "bash ${globals.migration_dir}/migrator.sh getSSHprojects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port}";
+        var command = "bash ${globals.migration_dir}/migrator.sh getRemoteProjects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port}";
         resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
         if (resp.result != 0) return resp;
         return JSON.parse(resp.responses[0].out).result;
