@@ -55,7 +55,7 @@ settings:
         for (var i = 0, n = values.length; i < n; i++) {
           aResultValues.push({
             caption: values[i].siteUrl,
-            value: values[i].id
+            value: values[i].siteUrl
           });
         }
         return aResultValues;
@@ -148,17 +148,17 @@ actions:
   deployProject:
     - script: |
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [], projectList = [];
-        var wpenv_file = jelastic.env.file.Read('${env.envName}', session, '${globals.wpenv_file}', null, null, '${nodes.cp.master.id}');
-        if (wpenv_file.result != 0) return wpenv_file;
+        var wpenv_file_content = jelastic.env.file.Read('${env.envName}', session, '${globals.wpenv_file}', null, null, '${nodes.cp.master.id}');
+        if (wpenv_file_content.result != 0) return wpenv_file_content;
 
-        var projects_file = jelastic.env.file.Read('${env.envName}', session, '${globals.projects_file}', null, null, '${nodes.cp.master.id}');
-        if (projects_file.result != 0) return projects_file;
+        var projects_file_content = jelastic.env.file.Read('${env.envName}', session, '${globals.projects_file}', null, null, '${nodes.cp.master.id}');
+        if (projects_file_content.result != 0) return projects_file_content;
         
         if ('${settings.isAllDeploy}' == 'true') {
-          var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList --format=json' }]), true);
+          var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'cat /home/jelastic/migrator/projects.json' }]), true);
           if (resp.result != 0) return resp;
           try {
-            projectList = JSON.parse(resp.responses[0].out).projects || [];
+            projectList = JSON.parse(resp.responses[0].out) || [];
           } catch (ex) {
             return { type: "error", message: "cannot parse project list: " + ex }
           }
@@ -172,9 +172,9 @@ actions:
             envGroups: envGroups,
             settings: {
               "master_env": '${env.envName}',
-              "wpenv_file": wpenv_file,
-              "projects_file": projects_file,
-              "project_id": projectList[i],
+              "wpenv_file_content": wpenv_file_content,
+              "projects_file_content": projects_file_content,
+              "project_name": projectList[i],
               "envGroups": envGroups
             }
           });
