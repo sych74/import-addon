@@ -5,7 +5,7 @@ id: wp-migrator
 targetEditions: any
 logo: /images/migrate-logo.svg
 description: Migrate your web site from remote WordPress installation
-baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-349
+baseUrl: https://raw.githubusercontent.com/sych74/import-addon/master
 
 targetNodes:
   nodeType:
@@ -42,8 +42,37 @@ settings:
 
   deploy:
     fields: []
-    onBeforeInit: scripts/importOnBeforeInit.js?_r=${fn.random}
+    onBeforeInit: |
+      import org.json.JSONObject;
+      var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'cat /home/jelastic/migrator/projects.json' }]), true);
+      if ( resp.result != 0 ) return resp;
+      var projectList = JSON.parse(resp.responses[0].out);
+      var projectListPrepared = prepareProjects(projectList);
       
+      function prepareProjects(values) {
+        var aResultValues = [];
+        values = values || [];
+        for (var i = 0, n = values.length; i < n; i++) {
+          aResultValues.push({
+            caption: values[i].siteUrl,
+            value: values[i].id
+          });
+        }
+        return aResultValues;
+      }
+
+      settings.fields.push({
+        "caption": "Project",
+        "type": "list",
+        "tooltip": "Select the project which you want to import",          
+        "name": "project",
+        "required": false,
+        "multiSelect": true,
+        "values": projectListPrepared
+      })
+
+      return settings;
+
 buttons:
 - caption: Get remote projects
   action: getRemoteProjects
@@ -96,7 +125,7 @@ actions:
         [[ -d ${globals.migration_dir} ]] || mkdir ${globals.migration_dir};
         wget ${baseUrl}/scripts/migrator.sh -O ${globals.migration_dir}/migrator.sh;
 
-  deployProject:
+  deployProjectAAAAAAAA:
     script: |
       var projects = '${settings.project}'.split(','), action;
       action = (projects.length > 1 || '${settings.isAllDeploy}' == 'true') ? "deployAllProjects" : "deployOneProject";
@@ -116,19 +145,13 @@ actions:
         if (resp.result != 0) return resp;
         return JSON.parse(resp.responses[0].out).result;
           
-  deployAllProjects:
-    - api: env.file.Read
-      path: ${globals.wpenv}
-      nodeId: ${nodes.storage.master.id}
-
-    - wpenv: ${response.body}
-      script: |
+  deployProject:
+    - script: |
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [], projectList = [];
-
-        var wpenv_file = jelastic.env.file.Read('${env.envName}', session, ${globals.wpenv_file}, null, null, '${nodes.cp.master.id}');
+        var wpenv_file = jelastic.env.file.Read('${env.envName}', session, '${globals.wpenv_file}', null, null, '${nodes.cp.master.id}');
         if (wpenv_file.result != 0) return wpenv_file;
 
-        var projects_file = jelastic.env.file.Read('${env.envName}', session, ${globals.projects_file}, null, null, '${nodes.cp.master.id}');
+        var projects_file = jelastic.env.file.Read('${env.envName}', session, '${globals.projects_file}', null, null, '${nodes.cp.master.id}');
         if (projects_file.result != 0) return projects_file;
         
         if ('${settings.isAllDeploy}' == 'true') {
