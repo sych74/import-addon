@@ -63,7 +63,9 @@ buttons:
   confirmText: You are going to import project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
 
 globals:
-  migration_dir: "$HOME/migrator"
+  migration_dir: /home/jelastic/migrator
+  wpenv_file: /home/jelastic/migrator/.wpenv
+  projects_file: /home/jelastic/migrator/projects.json
 
 responses:    
   701:
@@ -101,19 +103,8 @@ actions:
       return { result: 0, onAfterReturn: action };
 
   getRemoteProjects:
-    - installDependencies:
-    - setGlobals:
-        ssh_user: "${settings.ssh_user}"
-        ssh_pass: "${settings.ssh_pass}"
-        ssh_host: "${settings.ssh_host}"
-        ssh_port: "${settings.ssh_port}"
-
-    - env.control.ApplyNodeGroupData [cp]:
-        data: 
-          globals: "${globals.toJSON()}"
-
     - script: |
-        var command = "bash ${globals.migration_dir}/migrator.sh getRemoteProjects --ssh-user=${globals.ssh_user} --ssh-password=${globals.ssh_pass} --ssh-host=${globals.ssh_host} --ssh-port=${globals.ssh_port}";
+        var command = "bash ${globals.migration_dir}/migrator.sh getRemoteProjects --ssh-user=${settings.ssh_user} --ssh-password=${settings.ssh_pass} --ssh-host=${settings.ssh_host} --ssh-port=${settings.ssh_port}";
         resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
         if (resp.result != 0) return resp;
         return JSON.parse(resp.responses[0].out).result;
@@ -126,9 +117,20 @@ actions:
         return JSON.parse(resp.responses[0].out).result;
           
   deployAllProjects:
-    - importGlobalsFromNodeGroup: cp
-    - script: |
+    - api: env.file.Read
+      path: ${globals.wpenv}
+      nodeId: ${nodes.storage.master.id}
+
+    - wpenv: ${response.body}
+      script: |
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [], projectList = [];
+
+        var wpenv_file = jelastic.env.file.Read('${env.envName}', session, ${globals.wpenv_file}, null, null, '${nodes.cp.master.id}');
+        if (wpenv_file.result != 0) return wpenv_file;
+
+        var projects_file = jelastic.env.file.Read('${env.envName}', session, ${globals.projects_file}, null, null, '${nodes.cp.master.id}');
+        if (projects_file.result != 0) return projects_file;
+        
         if ('${settings.isAllDeploy}' == 'true') {
           var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'bash $HOME/migrator/migrator.sh getProjectList --format=json' }]), true);
           if (resp.result != 0) return resp;
@@ -140,30 +142,17 @@ actions:
         } else {
           projectList = '${settings.project}'.split(',');
         }
+    
         for (var i = 0, n = projectList.length; i < n; i ++) {
           actions.push({
             jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
             envGroups: envGroups,
             settings: {
-              "ssh_user": "${globals.ssh_user}",
-              "ssh_pass": "${globals.ssh_pass}",
-              "ssh_host": "${globals.ssh_host}",
-              "ssh_port": "${globals.ssh_port}",
-              "project_name": projectList[i],
+              "wpenv_file": wpenv_file,
+              "projects_file": projects_file,
+              "project_id": projectList[i],
               "envGroups": envGroups
             }
           });
         }
         return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
-
-  importGlobalsFromNodeGroup:
-    - script: |
-        var resp = api.env.control.GetNodeGroups("${env.name}", session);
-        if (resp.result != 0) return resp;
-        var groups = resp.object, globals;
-        for (var i = 0, n = groups.length; i < n; i++)
-          if (groups[i].name == "${this}" && groups[i].globals) {
-            globals = new org.yaml.snakeyaml.Yaml().load(groups[i].globals);
-            break;
-          }
-        return { result: 0, onAfterReturn: { setGlobals: globals } };
