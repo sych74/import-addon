@@ -54,11 +54,22 @@ actions:
           fixedTopologyLayers: 1
 
   addConfigs:
-    - cmd[${nodes.cp.master.id}]: |-
-        echo '${globals.wpenv_file_content}' > ${globals.wpenv_file};
-        echo 'PROJECT_NAME=${globals.project_name}' >> ${globals.wpenv_file};
-        echo '${globals.projects_file_content}' > ${globals.projects_file};
-
+    - script: | 
+        var envInfo = jelastic.env.control.GetEnvInfo('${globals.env_name}', session);
+        if (envInfo.result != 0) return envInfo;
+        for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
+          if (k[i].nodeGroup == 'cp')
+            master_id = k[i].id;
+        }       
+        var cmd1 = "echo '${globals.wpenv_file_content}' > ${globals.wpenv_file};";
+        var cmd2 = "echo 'PROJECT_NAME=${globals.project_name}' >> ${globals.wpenv_file};";
+        var cmd3 = "echo '${globals.projects_file_content}' > ${globals.projects_file};";
+        return api.environment.control.ExecCmdById({
+          envName: "${globals.env_name}", 
+          session: session,
+          nodeId: master_id, 
+          commandList: toJSON([{"command": cmd1}, {"command": cmd2}, {"command": cmd3}])
+        });
   installAddon:
     - install:
         jps: https://raw.githubusercontent.com/sych74/import-addon/WP-349/manifest.yml?_r=${fn.random}
