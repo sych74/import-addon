@@ -10,7 +10,7 @@ globals:
   env_name: wp-${fn.random}
   
   envGroups: ${settings.envGroups:"test"}  
-  project_id: ${settings.project_id:"test"}
+  project_name: ${settings.project_name}
   migration_dir: /home/jelastic/migrator
   wpenv_file: /home/jelastic/migrator/.wpenv
   wpenv_file_content: ${settings.wpenv_file_content}
@@ -56,6 +56,7 @@ actions:
   addConfigs:
     - cmd[${nodes.cp.master.id}]: |-
         echo '${globals.wpenv_file_content}' > ${globals.wpenv_file};
+        echo 'PROJECT_NAME=${globals.project_name}' >> ${globals.wpenv_file};
         echo '${globals.projects_file_content}' > ${globals.projects_file};
 
   installAddon:
