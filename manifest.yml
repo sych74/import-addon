@@ -171,6 +171,7 @@ actions:
             jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
             envGroups: envGroups,
             settings: {
+              "master_env": '${env.envName}',
               "wpenv_file": wpenv_file,
               "projects_file": projects_file,
               "project_id": projectList[i],
