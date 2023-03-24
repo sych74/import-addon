@@ -1,182 +1,94 @@
-type: update
-jpsVersion: 6.1.1
-name: WordPress Migrator
-id: wp-migrator
-targetEditions: any
-logo: /images/migrate-logo.svg
-description: Migrate your web site from remote WordPress installation
+type: install
+name: Standalone Pro
+
 baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-349
-
-targetNodes:
-  nodeType:
-    - nginxphp
-    - litespeedphp
-    - lemp
-    - llsmp
-
-settings:
-  ssh:
-    submitUnchanged: true
-    fields:
-      - type: string
-        name: ssh_host
-        caption: SSH Host/IP
-        default: ''
-        required: true
-      - type: string
-        name: ssh_port
-        caption: SSH Port
-        default: ''
-        required: true
-      - type: string
-        name: ssh_user
-        caption: SSH User
-        default: ''
-        required: true
-      - type: string
-        inputType: password
-        name: ssh_pass
-        caption: SSH Password
-        default: ''
-        required: true
-
-  deploy:
-    fields: []
-    onBeforeInit: |
-      import org.json.JSONObject;
-      var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'cat /home/jelastic/migrator/projects.json' }]), true);
-      if ( resp.result != 0 ) return resp;
-      var projectList = JSON.parse(resp.responses[0].out);
-      var projectListPrepared = prepareProjects(projectList);
-      
-      function prepareProjects(values) {
-        var aResultValues = [];
-        values = values || [];
-        for (var i = 0, n = values.length; i < n; i++) {
-          aResultValues.push({
-            caption: values[i].siteUrl,
-            value: values[i].siteUrl
-          });
-        }
-        return aResultValues;
-      }
-
-      settings.fields.push({
-        "caption": "Project",
-        "type": "list",
-        "tooltip": "Select the project which you want to import",          
-        "name": "project",
-        "required": false,
-        "multiSelect": true,
-        "values": projectListPrepared
-      })
-
-      return settings;
-
-buttons:
-- caption: Get remote projects
-  action: getRemoteProjects
-  settings: ssh
-  title: SSH connection detail
-  loadingText: Getting remote WordPress projects...
-  submitButtonText: Get projects
-  successText: List of WordPress projects received successfully.
   
-- caption: Import project
-  action: deployProject
-  loadingText: Importing...
-  settings: deploy
-  successText: The Wordpress project have been successfully imprted.
-  title: Import Project
-  submitButtonText: Import project
-  confirmText: You are going to import project, which will override all your existing data. This action cannot be canceled or reverted. Do you want to proceed?
-
 globals:
-  migration_dir: /home/jelastic/migrator
-  wpenv_file: /home/jelastic/migrator/.wpenv
-  projects_file: /home/jelastic/migrator/projects.json
-
-responses:    
-  701:
-    type: warning
-    message: SSH connection is failed. Please check SSH connection details!
-    
-  702:
-    type: warning
-    message: WP Toolkit utility isnt activated for this account. Please activate!  
-    
-  99:
-    type: warning
-    message: |
-      Errors were discovered during the project migration.
-      Please check the **/var/log/migrator.log** log file on master node of CP layer for details.
-
+  wp_admin_pass: ${fn.password(10)}
+  db_user: user-${fn.random}
+  db_pass: ${fn.password(10)}
+  env_name: wp-${fn.random}
+  envGroups: "${settings.envGroups}"
+  project_name: "${settings.project_name}"
+  migration_dir: "/home/jelastic/migrator"
+  wpenv_file: "/home/jelastic/migrator/.wpenv"
+  projects_file: "/home/jelastic/migrator/projects.json"
+  
 onInstall:
-  - installDependencies
+  - createEnv
+  - addLimits
+  - addConfigs
+  - installAddon
+  - importProject
 
 actions:
-  installDependencies:
-    - cmd[cp]: |-
-        rpm -qa | grep -qw sshpass || yum install sshpass -y;
-        echo "WordPress migrator add-on logs" > /var/log/migrator.log;
-        chown jelastic /var/log/migrator.log;
-      user: root
-    - cmd[${nodes.cp.master.id}]: |-
-        [[ -d ${globals.migration_dir} ]] || mkdir ${globals.migration_dir};
-        wget ${baseUrl}/scripts/migrator.sh -O ${globals.migration_dir}/migrator.sh;
+  createEnv:
+    - install:
+        jps: https://raw.githubusercontent.com/jelastic-jps/wordpress/v2.2.0/manifest.yml?_r=${fn.random}
+        envName: ${globals.env_name}
+        loggerName: ${globals.env_name}
+        displayName: ${globals.project_name}
+        envGroups: ${globals.envGroups}
+        settings:
+          ls-addon: true
+          waf: ${settings.waf:true}
+          wp_protect: ${settings.wp_protect:true}
+          le-addon: ${settings.le-addon:false}
+          cdn-addon: ${settings.cdn-addon:false}
+          mu-addon: false
+          woocommerce: false
+          DB_USER: ${globals.db_user}
+          DB_PASS: ${globals.db_pass}
+          WP_ADMIN_PASS: ${globals.wp_admin_pass}
+          success_email: false
+          project: ${settings.project:default}
+          projectScope: ${settings.projectScope:production}
 
-  deployProjectAAAAAAAA:
-    script: |
-      var projects = '${settings.project}'.split(','), action;
-      action = (projects.length > 1 || '${settings.isAllDeploy}' == 'true') ? "deployAllProjects" : "deployOneProject";
-      return { result: 0, onAfterReturn: action };
+  addLimits:
+    - env.control.ApplyNodeGroupData[cp]:
+        envName: ${globals.env_name}
+        data:
+          fixedTopologyLayers: 1
 
-  getRemoteProjects:
-    - script: |
-        var command = "bash ${globals.migration_dir}/migrator.sh getRemoteProjects --ssh-user=${settings.ssh_user} --ssh-password=${settings.ssh_pass} --ssh-host=${settings.ssh_host} --ssh-port=${settings.ssh_port} --format=json";
-        resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
-        if (resp.result != 0) return resp;
-        return JSON.parse(resp.responses[0].out).result;
-
-  deployOneProject:
-    - script: |
-        var command = "bash ${globals.migration_dir}/migrator.sh deployProject --instance-id=${settings.project}";
-        resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
-        if (resp.result != 0) return resp;
-        return JSON.parse(resp.responses[0].out).result;
-          
-  deployProject:
-    - script: |
-        var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [], projectList = [];
+  addConfigs:
+    - projects_file_content: ${settings.projects_file_content}
+      wpenv_file_content: ${settings.wpenv_file_content}
+      script: |
+        var envInfo = jelastic.env.control.GetEnvInfo('${env.envName}', session);
+        if (envInfo.result != 0) return envInfo;
+        for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
+          if (k[i].nodeGroup == 'cp')
+            master_id = k[i].id;
+        }       
         
-        var wpenv_file_content = jelastic.env.file.Read('${env.envName}', session, '${globals.wpenv_file}', null, null, '${nodes.cp.master.id}');
-        if (wpenv_file_content.result != 0) return wpenv_file_content;
+        var cmd1 = "echo '" + wpenv_file_content + "'  > ${globals.wpenv_file};";
+        var cmd2 = "echo 'PROJECT_NAME=${settings.project_name}' >> ${globals.wpenv_file};";
+        var cmd3 = "echo '" + projects_file_content + "'  > ${globals.projects_file};";
 
-        var projects_file_content = jelastic.env.file.Read('${env.envName}', session, '${globals.projects_file}', null, null, '${nodes.cp.master.id}');        
-        if (projects_file_content.result != 0) return projects_file_content;
+        return api.environment.control.ExecCmdById({
+          envName: "${env.envName}", 
+          session: session,
+          nodeId: master_id, 
+          commandList: toJSON([{"command": cmd1}, {"command": cmd2}, {"command": cmd3}])
+        });
+
+  installAddon:
+    - install:
+        jps: https://raw.githubusercontent.com/sych74/import-addon/WP-349/manifest.yml?_r=${fn.random}
+        envName: ${globals.env_name}
         
-        if ('${settings.isAllDeploy}' == 'true') {
-          var resp = jelastic.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ command: 'cat /home/jelastic/migrator/projects.json' }]), true);
-          if (resp.result != 0) return resp;
-          try {
-            projectList = JSON.parse(resp.responses[0].out) || [];
-          } catch (ex) {
-            return { type: "error", message: "cannot parse project list: " + ex }
-          }
-        } else {
-          projectList = '${settings.project}'.split(',');
-        }
-        
-        for (var i = 0, n = projectList.length; i < n; i ++) {
-          actions.push({
-            jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
-            envGroups: envGroups,
-            settings: {
-              "wpenv_file_content": wpenv_file_content.body,
-              "projects_file_content": projects_file_content.body,
-              "project_name": projectList[i],
-              "envGroups": envGroups
-            }
-          });
-        }
-        return { result: 0, onAfterReturn: { 'install': actions } };
+  importProject:
+    - script: | 
+        var envInfo = jelastic.env.control.GetEnvInfo('${globals.env_name}', session);
+        if (envInfo.result != 0) return envInfo;
+        for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
+          if (k[i].nodeGroup == 'cp')
+            master_id = k[i].id;
+        }       
+        var cmd1 = "bash ${globals.migrator_dir}/migrator.sh importProject --project-name==${globals.project_name}";       
+        return api.environment.control.ExecCmdById({
+          envName: "${globals.env_name}", 
+          session: session,
+          nodeId: master_id, 
+          commandList: toJSON([{"command": cmd1}])
+        });
