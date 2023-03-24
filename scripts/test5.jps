@@ -23,7 +23,8 @@ onInstall:
 actions:
  
   addConfigs:
-    - script: | 
+    - projects_file_content: ${settings.projects_file_content}
+      script: |
         var envInfo = jelastic.env.control.GetEnvInfo('${env.envName}', session);
         if (envInfo.result != 0) return envInfo;
         for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
@@ -32,7 +33,7 @@ actions:
         }       
         var cmd1 = "echo '${settings.wpenv_file_content}' > /tmp/wpenv_file_content;";
         var cmd2 = "echo 'PROJECT_NAME=${settings.project_name}' >> /tmp/wpenv_file_content;";
-        var cmd3 = "echo '${settings.projects_file_content}' > /tmp/projects_file_content;";
+        var cmd3 = "echo '" + projects_file_content + "'  > /tmp/projects_file_content;";
         return api.environment.control.ExecCmdById({
           envName: "${env.envName}", 
           session: session,
