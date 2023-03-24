@@ -1,20 +1,5 @@
 type: install
 name: Standalone Pro
-
-baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-349
-  
-globals:
-  wp_admin_pass: ${fn.password(10)}
-  db_user: user-${fn.random}
-  db_pass: ${fn.password(10)}
-  env_name: wp-${fn.random}
-  envGroups: "${settings.envGroups}"
-  project_name: "${settings.project_name}"
-  migration_dir: "/home/jelastic/migrator"
-  wpenv_file: "/home/jelastic/migrator/.wpenv"
-  wpenv_file_content: "${settings.wpenv_file_content}"
-  projects_file: "/home/jelastic/migrator/projects.json"
-  projects_file_content: "${settings.projects_file_content}"
   
 onInstall:
   - log: ------ ${settings.projects_file_content}
