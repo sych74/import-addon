@@ -18,22 +18,23 @@ globals:
   
 onInstall:
   - log: ------ ${settings.projects_file_content}
+  - addConfigs
 
 actions:
  
   addConfigs:
     - script: | 
-        var envInfo = jelastic.env.control.GetEnvInfo('${globals.env_name}', session);
+        var envInfo = jelastic.env.control.GetEnvInfo('${env.envName}', session);
         if (envInfo.result != 0) return envInfo;
         for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
           if (k[i].nodeGroup == 'cp')
             master_id = k[i].id;
         }       
-        var cmd1 = "echo '${globals.wpenv_file_content}' > ${globals.wpenv_file};";
-        var cmd2 = "echo 'PROJECT_NAME=${globals.project_name}' >> ${globals.wpenv_file};";
-        var cmd3 = "echo '${globals.projects_file_content}' > ${globals.projects_file};";
+        var cmd1 = "echo '${settings.wpenv_file_content}' > /tmp/wpenv_file_content;";
+        var cmd2 = "echo 'PROJECT_NAME=${settings.project_name}' >> /tmp/wpenv_file_content;";
+        var cmd3 = "echo '${settings.projects_file_content}' > /tmp/projects_file_content;";
         return api.environment.control.ExecCmdById({
-          envName: "${globals.env_name}", 
+          envName: "${env.envName}", 
           session: session,
           nodeId: master_id, 
           commandList: toJSON([{"command": cmd1}, {"command": cmd2}, {"command": cmd3}])
