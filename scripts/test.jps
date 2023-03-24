@@ -20,7 +20,7 @@ nodes:
 - nginxphp
 
 onInstall:
-  - addConfigs
+  - log: ------ ${globals.projects_file_content}
 
 actions:
  
