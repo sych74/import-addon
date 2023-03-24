@@ -133,7 +133,7 @@ actions:
 
   getRemoteProjects:
     - script: |
-        var command = "bash ${globals.migration_dir}/migrator.sh getRemoteProjects --ssh-user=${settings.ssh_user} --ssh-password=${settings.ssh_pass} --ssh-host=${settings.ssh_host} --ssh-port=${settings.ssh_port}";
+        var command = "bash ${globals.migration_dir}/migrator.sh getRemoteProjects --ssh-user=${settings.ssh_user} --ssh-password=${settings.ssh_pass} --ssh-host=${settings.ssh_host} --ssh-port=${settings.ssh_port} --format=json";
         resp = api.env.control.ExecCmdById('${env.envName}', session, '${nodes.cp.master.id}', toJSON([{ "command": command }]), true);
         if (resp.result != 0) return resp;
         return JSON.parse(resp.responses[0].out).result;
@@ -148,6 +148,7 @@ actions:
   deployProject:
     - script: |
         var envGroups = eval('(' + MANIFEST + ')').envGroups, actions = [], projectList = [];
+        
         var wpenv_file_content = jelastic.env.file.Read('${env.envName}', session, '${globals.wpenv_file}', null, null, '${nodes.cp.master.id}');
         if (wpenv_file_content.result != 0) return wpenv_file_content;
 
@@ -166,13 +167,11 @@ actions:
           projectList = '${settings.project}'.split(',');
         }
         
-        
         for (var i = 0, n = projectList.length; i < n; i ++) {
           actions.push({
             jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
             envGroups: envGroups,
             settings: {
-              "master_env": '${env.envName}',
               "wpenv_file_content": wpenv_file_content.body,
               "projects_file_content": projects_file_content.body,
               "project_name": projectList[i],
@@ -180,4 +179,4 @@ actions:
             }
           });
         }
-        return { result: 0, onAfterReturn: { 'marketplace.jps.install': actions } };
+        return { result: 0, onAfterReturn: { 'install': actions } };
