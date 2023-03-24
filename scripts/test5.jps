@@ -31,13 +31,11 @@ actions:
           if (k[i].nodeGroup == 'cp')
             master_id = k[i].id;
         }       
-        var cmd1 = "echo '${settings.wpenv_file_content}' > /tmp/wpenv_file_content;";
-        var cmd2 = "echo 'PROJECT_NAME=${settings.project_name}' >> /tmp/wpenv_file_content;";
         var cmd3 = "echo '" + projects_file_content + "'  > /tmp/projects_file_content;";
         return api.environment.control.ExecCmdById({
           envName: "${env.envName}", 
           session: session,
           nodeId: master_id, 
-          commandList: toJSON([{"command": cmd1}, {"command": cmd2}, {"command": cmd3}])
+          commandList: toJSON([{"command": cmd3}])
         });
  
