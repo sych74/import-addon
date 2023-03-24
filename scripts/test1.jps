@@ -1,4 +1,4 @@
-type: update
+type: install
 name: Standalone Pro
 
 baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-349
@@ -15,9 +15,6 @@ globals:
   wpenv_file_content: "${settings.wpenv_file_content}"
   projects_file: "/home/jelastic/migrator/projects.json"
   projects_file_content: "${settings.projects_file_content}"
-
-nodes:
-- nodeType: nginxphp
   
 onInstall:
   - log: ------ ${globals.projects_file_content}
