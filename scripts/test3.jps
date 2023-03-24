@@ -17,7 +17,7 @@ globals:
   projects_file_content: "${settings.projects_file_content}"
   
 onInstall:
-  - log: ------ ${globals.projects_file_content}
+  - log: ------ ${settings.projects_file_content}
 
 actions:
  
