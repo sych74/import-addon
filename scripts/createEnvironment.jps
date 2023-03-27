@@ -19,7 +19,10 @@ onInstall:
   - addConfigs
   - installDependencies
   - importProject
-  - if ('${globals.migrateStatus}' == 'OK'): successOut
+  - if ('${globals.migrateStatus}' == 'OK'): 
+    - successOut
+    - api: env.control.SetEnvDisplayName
+      displayName: Success
 
 actions:
   createEnv:
