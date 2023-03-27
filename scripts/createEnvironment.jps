@@ -79,6 +79,7 @@ actions:
         
   importProject:
     - script: | 
+        var migrateStatus = "OK";
         var envInfo = jelastic.env.control.GetEnvInfo({
           envName: '${globals.env_name}', 
           session: '${settings.userSession}'
@@ -89,9 +90,20 @@ actions:
             master_id = k[i].id;
         }       
         var cmd1 = "bash ${globals.migration_dir}/migrator.sh importProject --instance-id==${globals.project_id}";       
-        return api.environment.control.ExecCmdById({
+        var resp = api.environment.control.ExecCmdById({
           envName: '${globals.env_name}',
           session: '${settings.userSession}',
           nodeId: master_id, 
           commandList: toJSON([{"command": cmd1}])
         });
+        if (resp.result != 0)
+          migrateStatus = "FAIL"
+        try {
+          respOut = JSON.parse(resp.responses[0].out) || [];
+        } catch (ex) {
+          migrateStatus = "FAIL"
+        }
+        if (respOut.result != 0)
+          migrateStatus = "FAIL"
+        return { result : 0, onAfterReturn: { setGlobals: { migrateStatus: migrateStatus } } };
+
