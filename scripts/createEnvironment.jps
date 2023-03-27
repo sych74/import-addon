@@ -1,6 +1,5 @@
 type: install
 name: Standalone Pro
-
 baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-349
   
 globals:
@@ -9,86 +8,90 @@ globals:
   db_pass: ${fn.password(10)}
   env_name: wp-${fn.random}
   envGroups: "${settings.envGroups}"
-  project_name: "${settings.project_name}"
+  project_id: "${settings.project_id}"
   migration_dir: "/home/jelastic/migrator"
   wpenv_file: "/home/jelastic/migrator/.wpenv"
   projects_file: "/home/jelastic/migrator/projects.json"
   
 onInstall:
   - createEnv
-  - addLimits
   - addConfigs
-  - installAddon
+  - installDependencies
   - importProject
-
 actions:
   createEnv:
-    - install:
-        jps: https://raw.githubusercontent.com/jelastic-jps/wordpress/v2.2.0/manifest.yml?_r=${fn.random}
-        envName: ${globals.env_name}
-        loggerName: ${globals.env_name}
-        displayName: ${globals.project_name}
-        envGroups: ${globals.envGroups}
-        settings:
-          ls-addon: true
-          waf: ${settings.waf:true}
-          wp_protect: ${settings.wp_protect:true}
-          le-addon: ${settings.le-addon:false}
-          cdn-addon: ${settings.cdn-addon:false}
-          mu-addon: false
-          woocommerce: false
-          DB_USER: ${globals.db_user}
-          DB_PASS: ${globals.db_pass}
-          WP_ADMIN_PASS: ${globals.wp_admin_pass}
-          success_email: false
-          project: ${settings.project:default}
-          projectScope: ${settings.projectScope:production}
-
-  addLimits:
-    - env.control.ApplyNodeGroupData[cp]:
-        envName: ${globals.env_name}
-        data:
-          fixedTopologyLayers: 1
+    script: |
+      return jelastic.billing.subscription.InstallProduct({
+          appid: 'dashboard', 
+          session: '${settings.userSession}', 
+          subscriptionId: '${settings.subscriptionId}',
+          settings: { 
+            envName: '${globals.env_name}' 
+          }      
+        });   
+  
+  installDependencies:
+    - script: |
+        var envInfo = jelastic.env.control.GetEnvInfo({
+          envName: '${globals.env_name}', 
+          session: '${settings.userSession}'
+        });
+        if (envInfo.result != 0) return envInfo;
+        for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
+          if (k[i].nodeGroup == 'cp')
+            master_id = k[i].id;
+        }       
+        var cmd1 = "rpm -qa | grep -qw sshpass || yum install sshpass -y;";
+        var cmd2 = "echo 'WordPress migrator add-on logs' > /var/log/migrator.log;";
+        var cmd3 = "chown jelastic /var/log/migrator.log;";
+        return api.environment.control.ExecCmdById({
+          envName: '${globals.env_name}', 
+          session: '${settings.userSession}',
+          nodeId: master_id,
+          userName: "root",
+          commandList: toJSON([{"command": cmd1}, {"command": cmd2}, {"command": cmd3}])
+        });
 
   addConfigs:
     - projects_file_content: ${settings.projects_file_content}
       wpenv_file_content: ${settings.wpenv_file_content}
       script: |
-        var envInfo = jelastic.env.control.GetEnvInfo('${env.envName}', session);
+        var envInfo = jelastic.env.control.GetEnvInfo({
+          envName: '${globals.env_name}', 
+          session: '${settings.userSession}'
+        });
         if (envInfo.result != 0) return envInfo;
         for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
           if (k[i].nodeGroup == 'cp')
             master_id = k[i].id;
         }       
-        
-        var cmd1 = "echo '" + wpenv_file_content + "'  > ${globals.wpenv_file};";
-        var cmd2 = "echo 'PROJECT_NAME=${settings.project_name}' >> ${globals.wpenv_file};";
-        var cmd3 = "echo '" + projects_file_content + "'  > ${globals.projects_file};";
-
+        var cmd1 = "[[ -d ${globals.migration_dir} ]] || mkdir ${globals.migration_dir};";
+        var cmd2 = "wget ${baseUrl}/scripts/migrator.sh -O ${globals.migration_dir}/migrator.sh;";
+        var cmd3 = "echo '" + wpenv_file_content + "'  > ${globals.wpenv_file};";
+        var cmd4 = "echo 'PROJECT_NAME=${settings.project_id}' >> ${globals.wpenv_file};";
+        var cmd5 = "echo '" + projects_file_content + "'  > ${globals.projects_file};";
         return api.environment.control.ExecCmdById({
-          envName: "${env.envName}", 
-          session: session,
+          envName: '${globals.env_name}', 
+          session: '${settings.userSession}',
           nodeId: master_id, 
-          commandList: toJSON([{"command": cmd1}, {"command": cmd2}, {"command": cmd3}])
+          commandList: toJSON([{"command": cmd1}, {"command": cmd2}, {"command": cmd3}, {"command": cmd4}, {"command": cmd5}])
         });
-
-  installAddon:
-    - install:
-        jps: https://raw.githubusercontent.com/sych74/import-addon/WP-349/manifest.yml?_r=${fn.random}
-        envName: ${globals.env_name}
         
   importProject:
     - script: | 
-        var envInfo = jelastic.env.control.GetEnvInfo('${globals.env_name}', session);
+        var envInfo = jelastic.env.control.GetEnvInfo({
+          envName: '${globals.env_name}', 
+          session: '${settings.userSession}'
+        });
         if (envInfo.result != 0) return envInfo;
         for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
           if (k[i].nodeGroup == 'cp')
             master_id = k[i].id;
         }       
-        var cmd1 = "bash ${globals.migrator_dir}/migrator.sh importProject --project-name==${globals.project_name}";       
+        var cmd1 = "bash ${globals.migrator_dir}/migrator.sh importProject --instance-id==${globals.project_id}";       
         return api.environment.control.ExecCmdById({
           envName: "${globals.env_name}", 
-          session: session,
+          session: ${settings.userSession},
           nodeId: master_id, 
           commandList: toJSON([{"command": cmd1}])
         });
