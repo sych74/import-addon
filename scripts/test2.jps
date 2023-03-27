@@ -8,7 +8,7 @@ globals:
   db_pass: ${fn.password(10)}
   env_name: wp-${fn.random}
   envGroups: "${settings.envGroups}"
-  project_name: "${settings.project_name}"
+  project_id: "${settings.project_id}"
   migration_dir: "/home/jelastic/migrator"
   wpenv_file: "/home/jelastic/migrator/.wpenv"
   projects_file: "/home/jelastic/migrator/projects.json"
@@ -60,7 +60,7 @@ actions:
           if (k[i].nodeGroup == 'cp')
             master_id = k[i].id;
         }       
-        var cmd1 = "bash ${globals.migrator_dir}/migrator.sh importProject --project-name==${globals.project_name}";       
+        var cmd1 = "bash ${globals.migrator_dir}/migrator.sh importProject --instance-id==${globals.project_id}";       
         return api.environment.control.ExecCmdById({
           envName: "${globals.env_name}", 
           session: session,
