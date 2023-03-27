@@ -124,7 +124,7 @@ actions:
             master_id = k[i].id;
         }       
         var cmd1 = "echo '[SUCCESS] - ${globals.env_name}' >> /var/log/migrator.log";       
-        return resp = api.environment.control.ExecCmdById({
+        return api.environment.control.ExecCmdById({
           envName: '${globals.master_env}',
           nodeId: master_id, 
           commandList: toJSON([{"command": cmd1}])
