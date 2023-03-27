@@ -3,6 +3,7 @@ name: Standalone Pro
 baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-349
   
 globals:
+  master_env: ${settings.master_env}
   wp_admin_pass: ${fn.password(10)}
   db_user: user-${fn.random}
   db_pass: ${fn.password(10)}
@@ -18,6 +19,8 @@ onInstall:
   - addConfigs
   - installDependencies
   - importProject
+  - if ('${globals.migrateStatus}' == 'OK'): successOut
+
 actions:
   createEnv:
     script: |
@@ -106,4 +109,20 @@ actions:
         if (respOut.result != 0)
           migrateStatus = "FAIL"
         return { result : 0, onAfterReturn: { setGlobals: { migrateStatus: migrateStatus } } };
-
+        
+  successOut:
+    script: |
+        var envInfo = jelastic.env.control.GetEnvInfo({
+          envName: '${globals.master_env}'
+        });
+        if (envInfo.result != 0) return envInfo;
+        for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
+          if (k[i].nodeGroup == 'cp')
+            master_id = k[i].id;
+        }       
+        var cmd1 = "echo '[SUCCESS] - ${globals.env_name}' >> /var/log/migrator.log";       
+        return resp = api.environment.control.ExecCmdById({
+          envName: '${globals.master_env}',
+          nodeId: master_id, 
+          commandList: toJSON([{"command": cmd1}])
+        });
