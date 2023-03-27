@@ -193,6 +193,7 @@ actions:
             subscriptionId = '${settings.subscription}',
             projectList = '${settings.projects}'.split(','),
             envName = '${settings.envName}',
+            actions = [],
             containerID = '${settings.containerID}';
             
         function validateInstallationCount(subscription, count) {
@@ -248,7 +249,6 @@ actions:
               "wpenv_file_content": wpenv_file_content.body,
               "projects_file_content": projects_file_content.body,
               "project_name": projectList[i],
-              "envGroups": envGroups || [],
               "subscriptionId": subscriptionId,
               "userSession": userSession
             }
