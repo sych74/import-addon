@@ -5,9 +5,9 @@ description: Migrate your web site from remote WordPress installation
 baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-349
 onBeforeInit: | 
   // CHANGE VARIABLES
-  const targetUID = 787;
+  const targetUID = 2391;
   
-  const envName = "env-5230689";
+  const envName = "env-0749687";
   const ssh_host = "213.32.82.85";
   const ssh_port = 22;
   const ssh_user = "root";
@@ -60,7 +60,7 @@ onBeforeInit: |
     for (var i = 0, n = values.length; i < n; i++) {
       aResultValues.push({
         caption: values[i].ownerId + "  | " + values[i].siteUrl + " | " + values[i].fullPath,
-        value: values[i].siteUrl
+        value: values[i].id
       });
     }
     return aResultValues;
@@ -243,12 +243,12 @@ actions:
                
         for (var i = 0, n = projectList.length; i < n; i ++) {
           actions.push({
-            jps: "${baseUrl}/scripts/product.jps?_r=${fn.random}",
+            jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
             settings: {
               "master_env": envName,
+              "project_id": projectList[i],
               "wpenv_file_content": wpenv_file_content.body,
               "projects_file_content": projects_file_content.body,
-              "project_name": projectList[i],
               "subscriptionId": subscriptionId,
               "userSession": userSession
             }
