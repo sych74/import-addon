@@ -240,7 +240,7 @@ actions:
         if (wpenv_file_content.result != 0) return wpenv_file_content;
         var projects_file_content = jelastic.env.file.Read(envName, session, '${globals.projects_file}', null, null, containerID);        
         if (projects_file_content.result != 0) return projects_file_content;
-               
+        
         for (var i = 0, n = projectList.length; i < n; i ++) {
           actions.push({
             jps: "${baseUrl}/scripts/createEnvironment.jps?_r=${fn.random}",
