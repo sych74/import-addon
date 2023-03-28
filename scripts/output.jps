@@ -119,7 +119,7 @@ actions:
           if (k[i].nodeGroup == 'cp')
             master_id = k[i].id;
         }       
-        var cmd1 = "echo '[SUCCESS] - ${globals.env_name}' >> /var/log/migrator.log";       
+        var cmd1 = "echo 'Migrated status [SUCCESS]: Environment name - ${globals.env_name}' >> /var/log/migrator.log";
         return api.environment.control.ExecCmdById({
           envName: '${globals.master_env}',
           nodeId: master_id, 
@@ -136,7 +136,7 @@ actions:
           if (k[i].nodeGroup == 'cp')
             master_id = k[i].id;
         }       
-        var cmd1 = "echo '[FAILED] - ${globals.env_name}' >> /var/log/migrator.log";       
+        var cmd1 = "echo 'Migrated status [FAILED]: Environment name - ${globals.env_name}' >> /var/log/migrator.log";       
         return api.environment.control.ExecCmdById({
           envName: '${globals.master_env}',
           nodeId: master_id, 
