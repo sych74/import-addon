@@ -51,15 +51,7 @@ actions:
           nodeId: master_id, 
           commandList: toJSON([{"command": cmd1}])
         });
-        if (resp.result != 0)
-          migrateStatus = "FAIL"
-        try {
-          respOut = JSON.parse(resp.responses[0].out) || [];
-        } catch (ex) {
-          migrateStatus = "FAIL"
-        }
-        if (respOut.result != 0)
-          migrateStatus = "FAIL"
+        var respOut = JSON.parse(resp.responses[0].out) || [];
         return { result : 0, onAfterReturn: { setGlobals: { projectName: respOut.projectName } } };
     
   installDependencies:
