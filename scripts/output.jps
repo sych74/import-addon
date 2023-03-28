@@ -4,7 +4,7 @@ baseUrl: https://raw.githubusercontent.com/sych74/import-addon/WP-349
   
 globals:
   master_env: ${settings.master_env}
-  env_name: 'wp-2196895'
+  env_name: 'wp-8981452'
   project_id: "${settings.project_id}"
   migration_dir: "/home/jelastic/migrator"
   wpenv_file: "/home/jelastic/migrator/.wpenv"
