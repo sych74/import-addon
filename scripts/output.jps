@@ -13,11 +13,13 @@ globals:
 onInstall:
   - importProject
   - getProjectName
+  - api: env.control.SetEnvDisplayName
+    envName: ${globals.env_name}
+    session: ${settings.userSession}
+    displayName: ${globals.projectName}
+
   - if ('${globals.migrateStatus}' == 'OK'): 
     - successOut
-    - api: env.control.SetEnvDisplayName
-      displayName: Success
-
   - if ('${globals.migrateStatus}' == 'FAIL'):
     - failedOut
 
