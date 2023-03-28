@@ -97,7 +97,7 @@ actions:
         var cmd1 = "bash ${globals.migration_dir}/migrator.sh getProjectName --instance-id=${globals.project_id}";       
         var resp = api.environment.control.ExecCmdById({
           envName: '${globals.env_name}',
-          session: '${settings.userSession}'
+          session: '${settings.userSession}',
           nodeId: master_id, 
           commandList: toJSON([{"command": cmd1}])
         });
