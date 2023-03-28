@@ -33,26 +33,6 @@ actions:
           }      
         });   
 
-  getProjectName:
-    - script: | 
-        var envInfo = jelastic.env.control.GetEnvInfo({
-          envName: '${globals.env_name}', 
-          session: '${settings.userSession}'
-        });
-        if (envInfo.result != 0) return envInfo;
-        for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
-          if (k[i].nodeGroup == 'cp')
-            master_id = k[i].id;
-        }       
-        var cmd1 = "bash ${globals.migration_dir}/migrator.sh getProjectName --instance-id==${globals.project_id}";       
-        var resp = api.environment.control.ExecCmdById({
-          envName: '${globals.env_name}',
-          session: '${settings.userSession}',
-          nodeId: master_id, 
-          commandList: toJSON([{"command": cmd1}])
-        });
-        var respOut = JSON.parse(resp.responses[0].out) || [];
-        return { result : 0, onAfterReturn: { setGlobals: { projectName: respOut.projectName } } };
     
   installDependencies:
     - script: |
@@ -100,7 +80,28 @@ actions:
           nodeId: master_id, 
           commandList: toJSON([{"command": cmd1}, {"command": cmd2}, {"command": cmd3}, {"command": cmd4}, {"command": cmd5}])
         });
-        
+
+  getProjectName:
+    - script: | 
+        var envInfo = jelastic.env.control.GetEnvInfo({
+          envName: '${globals.env_name}',
+          session: '${settings.userSession}'
+        });
+        if (envInfo.result != 0) return envInfo;
+        for (var i = 0, k = envInfo.nodes; i < k.length; i++) {
+          if (k[i].nodeGroup == 'cp')
+            master_id = k[i].id;
+        }       
+        var cmd1 = "bash ${globals.migration_dir}/migrator.sh getProjectName --instance-id=${globals.project_id}";       
+        var resp = api.environment.control.ExecCmdById({
+          envName: '${globals.env_name}',
+          session: '${settings.userSession}'
+          nodeId: master_id, 
+          commandList: toJSON([{"command": cmd1}])
+        });
+        var respOut = JSON.parse(resp.responses[0]).out;
+        return { result : 0, onAfterReturn: { setGlobals: { projectName: respOut } } };
+
   importProject:
     - script: | 
         var migrateStatus = "OK";
