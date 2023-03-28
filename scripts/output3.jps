@@ -11,7 +11,7 @@ globals:
   projects_file: "/home/jelastic/migrator/projects.json"
   
 onInstall:
-
+  - importProject
   - getProjectName
   - if ('${globals.migrateStatus}' == 'OK'): 
     - successOut
