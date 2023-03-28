@@ -346,7 +346,7 @@ getProjectList(){
 getProjectName(){
   for i in "$@"; do
     case $i in
-      --instance_id=*)
+      --instance-id=*)
       INSTANCE_ID=${i#*=}
       shift
       shift
