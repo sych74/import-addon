@@ -11,17 +11,21 @@ globals:
   projects_file: "/home/jelastic/migrator/projects.json"
   
 onInstall:
-  - importProject
-  - getProjectName
-  - api: env.control.SetEnvDisplayName
-    envName: ${globals.env_name}
-    session: ${settings.userSession}
-    displayName: ${globals.projectName}
 
+  - getProjectName
   - if ('${globals.migrateStatus}' == 'OK'): 
     - successOut
+    - api: env.control.SetEnvDisplayName
+      envName: ${globals.env_name}
+      session: ${settings.userSession}
+      displayName: ${globals.projectName}-[SUCCESS]
+
   - if ('${globals.migrateStatus}' == 'FAIL'):
     - failedOut
+    - api: env.control.SetEnvDisplayName
+      envName: ${globals.env_name}
+      session: ${settings.userSession}
+      displayName: ${globals.projectName}-[FAILED]
 
 actions:
   createEnv:
