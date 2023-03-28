@@ -343,6 +343,24 @@ getProjectList(){
   fi
 }
 
+getProjectName(){
+  for i in "$@"; do
+    case $i in
+      --instance_id=*)
+      INSTANCE_ID=${i#*=}
+      shift
+      shift
+      ;;
+      *)
+        ;;
+    esac
+  done
+
+  projectName=$(getArgFromJSON $INSTANCE_ID "siteUrl")
+  output="{\"result\": 0, \"projectName\": ${projectName}}"
+  echo $output
+}
+
 checkSSHconnection(){
   local command="${SSH} \"exit 0\""
   local message="Checking SSH connection to remote host"
@@ -421,6 +439,10 @@ case ${1} in
 
     getProjectList)
       getProjectList "$@"
+      ;;
+
+    getProjectName)
+      getProjectName "$@"
       ;;
 
     importProject)
