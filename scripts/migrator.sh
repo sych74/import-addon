@@ -357,8 +357,7 @@ getProjectName(){
   done
 
   projectName=$(getArgFromJSON $INSTANCE_ID "siteUrl")
-  output="{\"result\": 0, \"projectName\": ${projectName}}"
-  echo $output
+  echo $projectName
 }
 
 checkSSHconnection(){
