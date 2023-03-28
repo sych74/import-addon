@@ -126,7 +126,7 @@ actions:
           if (k[i].nodeGroup == 'cp')
             master_id = k[i].id;
         }       
-        var cmd1 = "bash ${globals.migration_dir}/migrator.sh importProject --instance-id==${globals.project_id}";       
+        var cmd1 = "bash ${globals.migration_dir}/migrator.sh importProject --instance-id=${globals.project_id}";       
         var resp = api.environment.control.ExecCmdById({
           envName: '${globals.env_name}',
           session: '${settings.userSession}',
